@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cooking-Plan 初建方案文档</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e7e5e0;
+    --brand: #d9480f;
+    --brand-soft: #fff4ed;
+    --green: #2f9e44;
+    --blue: #1971c2;
+    --amber: #e8a317;
+    --code-bg: #f5f3ee;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.hero {
+    background: linear-gradient(135deg, #d9480f 0%, #e8590c 60%, #f08c00 100%);
+    color: #fff;
+    padding: 56px 20px 48px;
+    text-align: center;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 1px; }
+  header.hero .sub { font-size: 16px; opacity: .95; }
+  header.hero .meta { margin-top: 18px; font-size: 13px; opacity: .85; }
+  .badge {
+    display: inline-block; background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    padding: 3px 12px; border-radius: 999px; font-size: 13px; margin: 4px;
+  }
+
+  section { margin-top: 40px; }
+  h2 {
+    font-size: 22px; margin: 0 0 16px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--line); display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    background: var(--brand); color: #fff; width: 30px; height: 30px;
+    border-radius: 8px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 15px; flex: none;
+  }
+  h3 { font-size: 17px; margin: 22px 0 10px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 24px; margin-top: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  }
+
+  .lead {
+    background: var(--brand-soft); border-left: 4px solid var(--brand);
+    padding: 16px 20px; border-radius: 0 12px 12px 0; margin-top: 16px;
+  }
+  .lead strong { color: var(--brand); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td.k { font-weight: 600; white-space: nowrap; }
+
+  ul.clean { list-style: none; padding-left: 0; margin: 8px 0; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; }
+  ul.clean li::before {
+    content: "✓"; position: absolute; left: 0; top: 6px;
+    color: var(--green); font-weight: 700;
+  }
+
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  code { font-family: "SFMono-Regular", Consolas, Menlo, monospace; }
+
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .pill.green { background: #ebfbee; color: var(--green); }
+  .pill.blue { background: #e7f5ff; color: var(--blue); }
+  .pill.amber { background: #fff9db; color: #b08300; }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 640px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .decision {
+    border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; background: #fff;
+  }
+  .decision .q { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .decision .a { font-size: 16px; font-weight: 600; }
+  .decision .a .pill { margin-left: 6px; }
+
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li {
+    counter-increment: step; position: relative; padding: 12px 0 12px 48px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 12px;
+    width: 30px; height: 30px; background: var(--brand-soft); color: var(--brand);
+    border: 1px solid #f3c4a8; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+  }
+  .steps li b { display: block; }
+  .steps li span { color: var(--muted); font-size: 14px; }
+
+  .flow {
+    display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 10px;
+  }
+  .flow .node {
+    background: var(--brand-soft); border: 1px solid #f3c4a8; color: #9a3412;
+    padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 500;
+  }
+  .flow .arrow { color: var(--muted); }
+
+  .demo-step {
+    display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+    border: 1px solid var(--line); border-radius: 8px; margin-top: 8px; background: #fff;
+  }
+  .dot { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+  .tag { font-size: 12px; padding: 1px 8px; border-radius: 6px; background: var(--code-bg); color: var(--muted); }
+  .demo-step .chk { margin-left: auto; color: var(--muted); }
+
+  .note { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .toc { font-size: 14px; }
+  .toc a { color: var(--blue); text-decoration: none; margin-right: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 56px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>🍳 Cooking-Plan 初建方案</h1>
+  <div class="sub">为「真实厨房场景」设计的多菜协同菜谱应用</div>
+  <div>
+    <span class="badge">v0.3 已定稿</span>
+    <span class="badge">可开工</span>
+  </div>
+  <div class="meta">文档：docs/00-初建方案文档.html · 创建 2026-06-30 · 更新 2026-06-30（v0.3）</div>
+</header>
+
+<div class="wrap">
+
+  <div class="lead">
+    <strong>核心洞察：</strong>传统菜谱都是一道道独立、串行的。但真实做菜时，多道菜是<strong>同时进行</strong>的——
+    切菜、腌制、炒制的步骤会交织在一起。本应用要解决的就是：把多道菜的步骤<strong>按阶段合并</strong>，
+    再让用户<strong>手动拖拽</strong>排成贴合真实操作的"作战时间线"。
+  </div>
+
+  <p class="toc">
+    <strong>目录：</strong>
+    <a href="#s1">① 产品目标</a>
+    <a href="#s2">② 关键决策</a>
+    <a href="#s3">③ 技术栈</a>
+    <a href="#s4">④ 数据模型</a>
+    <a href="#s5">⑤ 页面结构</a>
+    <a href="#s6">⑥ Cooking 模式</a>
+    <a href="#s7">⑦ 实施计划</a>
+    <a href="#s8">⑧ 评审结论</a>
+  </p>
+
+  <div class="card" style="border-left:4px solid var(--green)">
+    <h3 style="margin-top:0">📝 v0.3 变更记录（定稿）</h3>
+    <ul class="clean">
+      <li><b>准备 + 制作合并为「统一时间线」</b>：Cooking 视图不再把准备/制作切成两个固定分区，而是放进<b>同一条可拖拽列表</b>，靠颜色圆点 + 「准备/制作」小标签区分。这样"先煮饭→再切菜→回来翻炒"等跨阶段交错顺序可完整表达，贴合真实厨房。食材仍为独立勾选清单。</li>
+      <li><b>nit：</b><code>cooking_session_items.recipe_id</code> 改为<b>可空 + ON DELETE SET NULL</b>——删菜谱后快照计划仍完整，仅"重建"按钮失效。</li>
+      <li><b>nit：</b>图片压缩/缩略图用<b>服务端 sharp</b> 处理。</li>
+    </ul>
+  </div>
+
+  <div class="card" style="border-left:4px solid var(--line)">
+    <h3 style="margin-top:0">📝 v0.2 变更记录（已纳入评审建议）</h3>
+    <ul class="clean">
+      <li><b>Cooking 计划改为快照</b>：创建计划时复制当时的步骤/食材，与后续菜谱编辑解耦，消除多态外键悬空问题；详情页提供"用最新版重建"按钮。</li>
+      <li><b>食材阶段改为勾选清单</b>：不再可拖拽排序，改为"按菜分组的勾选清单"，v1 自然落地买菜清单（不做不可靠的数量自动求和）。</li>
+      <li><b>合并步骤表</b>：<code>prep_steps</code> + <code>cook_steps</code> 合并为一张 <code>steps(phase)</code>。</li>
+      <li><b>颜色入模型</b>：颜色分配到 <code>cooking_session_items.color</code>（会话内属性）。</li>
+      <li><b>实施顺序调整</b>：核心功能（菜谱 + Cooking）优先，登录鉴权下沉到核心跑通之后。</li>
+      <li><b>补充</b>：<code>updated_at</code>、<code>ON DELETE CASCADE</code>、zod 校验、上传校验+压缩、弱网乐观更新、核心逻辑单测。</li>
+    </ul>
+  </div>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><span class="num">1</span>产品目标</h2>
+    <div class="card">
+      <h3>功能一：制作菜谱</h3>
+      <p>每道菜按 <b>食材 / 准备 / 制作</b> 三个部分设计，每部分可由用户自由增删步骤；每道菜可上传一张图片作为菜谱展图。</p>
+      <ul class="clean">
+        <li><b>食材</b>：结构化记录——名称（必填）+ 用量（可选），如「番茄 2个」「盐 适量」</li>
+        <li><b>准备</b>：不开火的预处理（洗、切、腌、调酱汁）</li>
+        <li><b>制作</b>：开火烹饪（炒、煮、蒸、炖）</li>
+      </ul>
+
+      <h3>功能二：Cooking（多菜协同）</h3>
+      <p>从自己的菜谱中勾选几道菜，系统按 <b>食材 / 准备 / 制作</b> 三个阶段把所有菜的步骤<b>整合到一起</b>，
+         用户可<b>手动拖拽</b>调整各步骤顺序，排成同时做多道菜时真实的操作顺序。</p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><span class="num">2</span>关键决策（已确认）</h2>
+    <div class="grid2">
+      <div class="decision">
+        <div class="q">数据存储 / 同步</div>
+        <div class="a">带后端 + 账号同步 <span class="pill blue">已定</span></div>
+        <div class="note">支持多设备同步，每个用户拥有自己的菜谱。</div>
+      </div>
+      <div class="decision">
+        <div class="q">食材记录方式</div>
+        <div class="a">结构化：名称 + 用量 <span class="pill blue">已定</span></div>
+        <div class="note">名称必填，用量可选。便于将来汇总买菜清单。</div>
+      </div>
+      <div class="decision">
+        <div class="q">登录方式</div>
+        <div class="a">自建邮箱 + 密码 <span class="pill blue">已定</span></div>
+        <div class="note">bcrypt 加密 + httpOnly Cookie 会话，不依赖第三方登录服务。</div>
+      </div>
+      <div class="decision">
+        <div class="q">运行方式</div>
+        <div class="a">先本地开发运行 <span class="pill blue">已定</span></div>
+        <div class="note">本地 Docker 跑 Postgres，调试满意后再考虑部署上线。</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><span class="num">3</span>技术栈</h2>
+    <div class="card">
+      <table>
+        <tr><th>层</th><th>选型</th><th>理由</th></tr>
+        <tr><td class="k">框架</td><td>Next.js (App Router) + TypeScript</td><td>前后端一体同仓库，PC/手机响应式</td></tr>
+        <tr><td class="k">样式</td><td>Tailwind CSS</td><td>快速实现响应式布局</td></tr>
+        <tr><td class="k">数据库</td><td>Postgres（本地 Docker）</td><td>关系型，适合「菜谱-步骤-食材」结构</td></tr>
+        <tr><td class="k">ORM</td><td>Drizzle</td><td>轻量、类型安全、迁移方便</td></tr>
+        <tr><td class="k">登录</td><td>自建：bcrypt + jose(JWT) + httpOnly Cookie</td><td>全自有代码，不依赖第三方</td></tr>
+        <tr><td class="k">图片</td><td>本地 <code>public/uploads</code>（存储层抽象）+ 服务端 sharp 校验/压缩/缩略图</td><td>本地开发零依赖；将来一行切换到 Vercel Blob</td></tr>
+        <tr><td class="k">拖拽</td><td>@dnd-kit</td><td>原生支持触摸，手机端流畅</td></tr>
+        <tr><td class="k">表单</td><td>react-hook-form（useFieldArray）</td><td>动态增删/排序的步骤、食材表单</td></tr>
+        <tr><td class="k">校验</td><td>zod</td><td>表单 + Server Action 输入校验，前后端共用</td></tr>
+        <tr><td class="k">测试</td><td>Vitest</td><td>聚焦"合并 + 排序 + 快照"核心逻辑单测</td></tr>
+      </table>
+      <p class="note">说明：图片存储做成一层抽象接口，本地存文件系统，上线时替换为云存储而不改业务代码；
+        上传时校验类型/大小并压缩缩略图（避免存入超大原图）。多用户下的图片鉴权读取推迟到上云阶段。</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><span class="num">4</span>数据模型</h2>
+    <div class="card">
+<pre>users
+  id, email, password_hash, created_at, updated_at
+
+recipes
+  id, user_id → users, title, image_url, created_at, updated_at
+
+ingredients                         食材（结构化）
+  id, recipe_id → recipes ⊗CASCADE,
+  name(必填), amount(可选), sort
+
+steps                               ★ 准备/制作合并为一张表
+  id, recipe_id → recipes ⊗CASCADE,
+  phase('prep' | 'cook'), text, sort
+
+cooking_sessions                    一次 Cooking 计划
+  id, user_id → users ⊗CASCADE,
+  name, created_at, updated_at
+
+cooking_session_items               选了哪些菜 + 会话内分配的颜色
+  id, session_id → cooking_sessions ⊗CASCADE,
+  recipe_id → recipes (可空, ⊗SET NULL), color
+  ↑ 删菜谱后快照仍完整，仅"重建"失效
+
+cooking_session_steps               ★ 快照：创建时复制的准备/制作步骤
+  id, session_id → cooking_sessions ⊗CASCADE,
+  phase('prep' | 'cook'),
+  source_recipe_title,   ← 快照：来源菜名
+  color,                 ← 快照：颜色
+  text,                  ← 快照：步骤文字
+  sort, done
+
+cooking_session_ingredients         ★ 快照：食材清单（按菜分组勾选）
+  id, session_id → cooking_sessions ⊗CASCADE,
+  source_recipe_title, color,
+  name, amount, done</pre>
+      <p class="note">★ = v0.2 评审后变更。<b>⊗CASCADE</b> 表示父行删除时级联删除。
+        关系概览：用户 → 多菜谱；菜谱 → 多条食材/步骤(phase 区分准备/制作)；
+        Cooking 会话创建时<b>把当时的步骤与食材复制成快照</b>，之后编辑菜谱不影响已建计划（多态外键已移除）。</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><span class="num">5</span>页面结构</h2>
+    <div class="card">
+      <table>
+        <tr><th>路由</th><th>页面</th><th>说明</th></tr>
+        <tr><td class="k">/register · /login</td><td>注册 / 登录</td><td>邮箱+密码</td></tr>
+        <tr><td class="k">/</td><td>我的菜谱列表</td><td>卡片+展图，入口去新建 / Cooking</td></tr>
+        <tr><td class="k">/recipes/new</td><td>新建菜谱</td><td>三段编辑器</td></tr>
+        <tr><td class="k">/recipes/[id]/edit</td><td>编辑菜谱</td><td>食材/准备/制作增删+拖拽排序+上传展图</td></tr>
+        <tr><td class="k">/recipes/[id]</td><td>菜谱详情</td><td>查看单道菜</td></tr>
+        <tr><td class="k">/cooking</td><td>选菜</td><td>勾选多道菜 → 创建 Cooking 计划</td></tr>
+        <tr><td class="k">/cooking/[id]</td><td>合并视图</td><td>食材勾选清单 + 准备·制作统一时间线，拖拽排序 + 打勾完成 + 自动保存</td></tr>
+      </table>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><span class="num">6</span>Cooking 模式交互</h2>
+    <div class="card">
+      <div class="flow">
+        <span class="node">勾选多道菜</span>
+        <span class="arrow">→</span>
+        <span class="node">生成快照（食材清单 + 步骤）</span>
+        <span class="arrow">→</span>
+        <span class="node">在统一时间线上拖拽排真实顺序</span>
+        <span class="arrow">→</span>
+        <span class="node">做菜时打勾完成</span>
+      </div>
+
+      <p class="note">Cooking 视图分两个区：<b>① 食材勾选清单</b>（按菜分组，备料用）；<b>② 准备 + 制作统一时间线</b>（一条可拖拽列表，准备/制作步骤可自由交错）。</p>
+
+      <h3>统一时间线示意（准备 ⇄ 制作可交错）</h3>
+      <div class="demo-step">
+        <span class="dot" style="background:#e8590c"></span>
+        <span class="tag">番茄炒蛋</span>
+        <span class="tag" style="background:#fff9db;color:#b08300">制作</span>
+        <span>先把电饭煲煮上饭</span>
+        <span class="chk">☐</span>
+      </div>
+      <div class="demo-step">
+        <span class="dot" style="background:#1971c2"></span>
+        <span class="tag">青椒肉丝</span>
+        <span class="tag" style="background:#e7f5ff;color:#1971c2">准备</span>
+        <span>肉丝用淀粉腌 10 分钟</span>
+        <span class="chk">☐</span>
+      </div>
+      <div class="demo-step">
+        <span class="dot" style="background:#e8590c"></span>
+        <span class="tag">番茄炒蛋</span>
+        <span class="tag" style="background:#e7f5ff;color:#1971c2">准备</span>
+        <span>番茄切块、鸡蛋打散</span>
+        <span class="chk">☐</span>
+      </div>
+      <div class="demo-step">
+        <span class="dot" style="background:#1971c2"></span>
+        <span class="tag">青椒肉丝</span>
+        <span class="tag" style="background:#fff9db;color:#b08300">制作</span>
+        <span>热油下肉丝快炒</span>
+        <span class="chk">☐</span>
+      </div>
+
+      <p class="note">每个步骤前用<b>专属颜色圆点（区分菜）+ 菜名标签 + 准备/制作小标签</b>三重标识，拖乱顺序后仍能一眼分辨来源与类型；
+        每步可<b>打勾完成</b>；调整后的顺序<b>自动保存</b>到该 Cooking 计划，下次可接着用。</p>
+
+      <h3>两个区的差异（v0.3 定稿）</h3>
+      <ul class="clean">
+        <li><b>食材</b>：<span class="pill amber">勾选清单</span> 按菜分组列出，<b>不可拖拽</b>（食材是清单不是动作）；同名食材尽力归组并列展示，<b>不强行求和</b>。这一区即"买菜/备料清单"。</li>
+        <li><b>准备 + 制作</b>：<span class="pill blue">统一可拖拽时间线</span> 二者放进同一列表自由交错排序，靠小标签区分类型——表达"先煮饭→再切菜→回锅翻炒"的真实操作流。</li>
+      </ul>
+
+      <p class="note">
+        <b>弱网友好：</b>打勾与拖拽采用<b>乐观更新 + 后台同步</b>，厨房网络差时也不卡（不做完整离线，v1 够用）。<br>
+        <b>快照与更新：</b>计划是创建时的快照；详情页提供「<b>用菜谱最新版重建此计划</b>」按钮，需要时一键同步最新内容。
+      </p>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><span class="num">7</span>实施计划（分步可验证）</h2>
+    <div class="card">
+      <p class="note" style="margin-top:0">v0.2 调整：<b>核心价值优先</b>——先用一个种子开发用户把菜谱+Cooking 跑通，再接入多用户登录。</p>
+      <ol class="steps">
+        <li><b>脚手架搭建</b><span>Next.js + Tailwind + Docker Postgres + Drizzle + Vitest 接通</span></li>
+        <li><b>数据库 Schema</b><span>建表（含快照表）+ 迁移脚本 + 种子用户</span></li>
+        <li><b>菜谱 CRUD</b><span>三段编辑器（react-hook-form）+ 图片上传校验/压缩 + 步骤拖拽排序 + zod 校验</span></li>
+        <li><b>Cooking 模式</b><span>选菜 → 生成快照 → 合并视图（食材勾选清单 / 准备·制作拖拽）+ 打勾 + 乐观更新</span></li>
+        <li><b>核心逻辑单测</b><span>合并 + 排序 + 快照生成的 Vitest 测试</span></li>
+        <li><b>注册 / 登录</b><span>bcrypt + JWT Cookie(SameSite) + 登录限流 + 路由保护 → 数据按用户隔离</span></li>
+        <li><b>响应式打磨</b><span>PC / 手机适配 + README 启动说明</span></li>
+      </ol>
+      <p class="note">推迟到 backlog：邮箱验证、忘记密码、图片鉴权读取、完整离线(PWA)、买菜清单数量求和。</p>
+    </div>
+  </section>
+
+  <!-- 8 -->
+  <section id="s8">
+    <h2><span class="num">8</span>评审结论与取舍</h2>
+    <div class="card">
+      <h3 style="margin-top:0">已采纳</h3>
+      <table>
+        <tr><th>评审建议</th><th>处理</th></tr>
+        <tr><td>Cooking 计划做快照</td><td><span class="pill green">全采纳</span> 见 §4 快照表</td></tr>
+        <tr><td>颜色进 cooking_session_items</td><td><span class="pill green">全采纳</span></td></tr>
+        <tr><td>合并 prep/cook 为一张 steps 表</td><td><span class="pill green">全采纳</span></td></tr>
+        <tr><td>核心逻辑写测试</td><td><span class="pill green">采纳</span> 聚焦合并/排序/快照</td></tr>
+        <tr><td>updated_at / CASCADE / zod / RHF</td><td><span class="pill green">全采纳</span></td></tr>
+      </table>
+
+      <h3>部分采纳（限定范围）</h3>
+      <table>
+        <tr><th>评审建议</th><th>取舍</th></tr>
+        <tr><td>食材阶段做清单</td><td><span class="pill amber">采纳并增强</span> 食材改勾选清单；准备+制作合并为统一时间线（v0.3）；<b>不做</b>数量自动求和</td></tr>
+        <tr><td>核心优先、auth 安全</td><td><span class="pill amber">部分采纳</span> 重排顺序、auth 下沉但不删；CSRF(SameSite)+限流入 v1；邮箱验证/找回密码推迟</td></tr>
+        <tr><td>弱网乐观更新</td><td><span class="pill amber">精简采纳</span> 仅 Cooking 视图乐观更新；不做完整离线</td></tr>
+        <tr><td>图片隐私</td><td><span class="pill amber">拆开</span> 上传校验+压缩现做；鉴权读取推迟到上云</td></tr>
+      </table>
+
+      <p class="note" style="margin-top:14px">Backlog（按需再做）：买菜清单数量求和、制作步骤计时器、菜谱分享/公开、搜索与标签、邮箱验证、忘记密码、图片鉴权读取、PWA 离线。</p>
+    </div>
+  </section>
+
+  <footer>
+    Cooking-Plan · 初建方案 v0.3 · 已定稿 —— 按实施计划开工
+  </footer>
+
+</div>
+</body>
+</html>
