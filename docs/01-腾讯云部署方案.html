@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cooking-Plan 腾讯云部署方案</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e7e5e0;
+    --brand: #d9480f;
+    --brand-soft: #fff4ed;
+    --green: #2f9e44;
+    --blue: #1971c2;
+    --amber: #e8a317;
+    --code-bg: #f5f3ee;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  .wrap { max-width: 920px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.hero {
+    background: linear-gradient(135deg, #1971c2 0%, #228be6 60%, #339af0 100%);
+    color: #fff;
+    padding: 56px 20px 48px;
+    text-align: center;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 1px; }
+  header.hero .sub { font-size: 16px; opacity: .95; }
+  header.hero .meta { margin-top: 18px; font-size: 13px; opacity: .85; }
+  .badge {
+    display: inline-block; background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    padding: 3px 12px; border-radius: 999px; font-size: 13px; margin: 4px;
+  }
+
+  section { margin-top: 40px; }
+  h2 {
+    font-size: 22px; margin: 0 0 16px; padding-bottom: 10px;
+    border-bottom: 2px solid var(--line); display: flex; align-items: center; gap: 10px;
+  }
+  h2 .num {
+    background: var(--blue); color: #fff; width: 30px; height: 30px;
+    border-radius: 8px; display: inline-flex; align-items: center;
+    justify-content: center; font-size: 15px; flex: none;
+  }
+  h3 { font-size: 17px; margin: 22px 0 10px; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line);
+    border-radius: 14px; padding: 22px 24px; margin-top: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  }
+
+  .lead {
+    background: var(--brand-soft); border-left: 4px solid var(--brand);
+    padding: 16px 20px; border-radius: 0 12px 12px 0; margin-top: 16px;
+  }
+  .lead strong { color: var(--brand); }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 15px; }
+  th, td { text-align: left; padding: 11px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--code-bg); font-weight: 600; }
+  td.k { font-weight: 600; white-space: nowrap; }
+
+  ul.clean { list-style: none; padding-left: 0; margin: 8px 0; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; }
+  ul.clean li::before {
+    content: "✓"; position: absolute; left: 0; top: 6px;
+    color: var(--green); font-weight: 700;
+  }
+
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 10px;
+    padding: 16px 18px; overflow-x: auto; font-size: 13.5px; line-height: 1.6;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  code { font-family: "SFMono-Regular", Consolas, Menlo, monospace; }
+
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+  .pill.green { background: #ebfbee; color: var(--green); }
+  .pill.blue { background: #e7f5ff; color: var(--blue); }
+  .pill.amber { background: #fff9db; color: #b08300; }
+  .pill.red { background: #fff5f5; color: #e03131; }
+
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li {
+    counter-increment: step; position: relative; padding: 12px 0 12px 48px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step); position: absolute; left: 0; top: 12px;
+    width: 30px; height: 30px; background: var(--brand-soft); color: var(--brand);
+    border: 1px solid #f3c4a8; border-radius: 50%; display: flex;
+    align-items: center; justify-content: center; font-weight: 700; font-size: 14px;
+  }
+  .steps li b { display: block; }
+  .steps li span { color: var(--muted); font-size: 14px; }
+
+  .note { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .warning { color: var(--amber); font-size: 14px; margin-top: 10px; }
+  .danger { color: #e03131; font-size: 14px; margin-top: 10px; }
+
+  .toc { font-size: 14px; }
+  .toc a { color: var(--blue); text-decoration: none; margin-right: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 56px; }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <h1>🚀 Cooking-Plan 腾讯云部署方案</h1>
+  <div class="sub">Docker Compose 全容器化部署 · 一键启动</div>
+  <div>
+    <span class="badge">v1.0</span>
+    <span class="badge">生产就绪</span>
+  </div>
+  <div class="meta">文档：docs/01-腾讯云部署方案.html · 创建 2026-07-13</div>
+</header>
+
+<div class="wrap">
+
+  <div class="lead">
+    <strong>部署架构：</strong>Docker Compose 管理 <b>Next.js 应用 + Postgres 数据库</b>，
+    通过 <code>auto_run.sh</code> 脚本统一管理启动/停止/状态查询。
+  </div>
+
+  <p class="toc">
+    <strong>目录：</strong>
+    <a href="#s1">① 前置要求</a>
+    <a href="#s2">② 部署步骤</a>
+    <a href="#s3">③ auto_run.sh 脚本</a>
+    <a href="#s4">④ Docker Compose 配置</a>
+    <a href="#s5">⑤ 环境变量</a>
+    <a href="#s6">⑥ 运维操作</a>
+    <a href="#s7">⑦ 常见问题</a>
+  </p>
+
+  <!-- 1 -->
+  <section id="s1">
+    <h2><span class="num">1</span>前置要求</h2>
+    <div class="card">
+      <h3>服务器配置</h3>
+      <table>
+        <tr><th>项目</th><th>最低配置</th><th>推荐配置</th></tr>
+        <tr><td class="k">CPU</td><td>2 核</td><td>2 核</td></tr>
+        <tr><td class="k">内存</td><td>2GB</td><td>4GB</td></tr>
+        <tr><td class="k">存储</td><td>40GB</td><td>40GB+（含备份）</td></tr>
+        <tr><td class="k">带宽</td><td>1Mbps</td><td>3Mbps+</td></tr>
+        <tr><td class="k">系统</td><td colspan="2">Ubuntu 20.04+ / CentOS 8+ / Debian 11+</td></tr>
+      </table>
+
+      <h3>需要安装的软件</h3>
+      <ul class="clean">
+        <li><b>Docker</b> — 20.10+ （容器运行时）</li>
+        <li><b>Docker Compose</b> — 2.0+ （容器编排）</li>
+        <li><b>Git</b> — 拉取代码</li>
+      </ul>
+
+      <p class="note">腾讯云轻量应用服务器可选择「Docker」镜像，预装 Docker 和 Docker Compose。</p>
+    </div>
+  </section>
+
+  <!-- 2 -->
+  <section id="s2">
+    <h2><span class="num">2</span>部署步骤</h2>
+    <div class="card">
+      <ol class="steps">
+        <li><b>服务器环境准备</b><span>安装 Docker + Docker Compose + Git（如未安装）</span></li>
+        <li><b>拉取代码</b><span>git clone 仓库到服务器 /opt/cooking-plan</span></li>
+        <li><b>配置环境变量</b><span>复制 .env.example 并修改配置值</span></li>
+        <li><b>构建镜像</b><span>首次运行自动构建 Next.js 生产镜像</span></li>
+        <li><b>启动服务</b><span>./auto_run.sh start</span></li>
+        <li><b>配置域名</b><span>解析到服务器 IP（可选，推荐）</span></li>
+        <li><b>配置 SSL</b><span>Nginx 反向代理 + Let's Encrypt（可选）</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- 3 -->
+  <section id="s3">
+    <h2><span class="num">3</span>auto_run.sh 脚本</h2>
+    <div class="card">
+      <p>统一管理脚本，放置在项目根目录，提供以下命令：</p>
+
+      <table>
+        <tr><th>命令</th><th>功能</th></tr>
+        <tr><td class="k"><code>./auto_run.sh start</code></td><td>启动服务（构建镜像 + 启动容器）</td></tr>
+        <tr><td class="k"><code>./auto_run.sh stop</code></td><td>停止服务（保留数据卷）</td></tr>
+        <tr><td class="k"><code>./auto_run.sh restart</code></td><td>重启服务</td></tr>
+        <tr><td class="k"><code>./auto_run.sh status</code></td><td>查看服务运行状态</td></tr>
+        <tr><td class="k"><code>./auto_run.sh logs</code></td><td>查看服务日志</td></tr>
+        <tr><td class="k"><code>./auto_run.sh update</code></td><td>更新代码并重新部署</td></tr>
+        <tr><td class="k"><code>./auto_run.sh backup</code></td><td>备份 Postgres 数据</td></tr>
+        <tr><td class="k"><code>./auto_run.sh help</code></td><td>显示帮助信息</td></tr>
+      </table>
+
+      <p class="note">脚本自动处理 Docker 镜像构建、容器启动、数据卷挂载等细节。</p>
+    </div>
+  </section>
+
+  <!-- 4 -->
+  <section id="s4">
+    <h2><span class="num">4</span>Docker Compose 配置</h2>
+    <div class="card">
+      <p><code>docker-compose.yml</code> 定义两个服务：</p>
+
+<pre># 简化示意，实际配置见项目文件
+services:
+  db:
+    image: postgres:15-alpine
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: cooking_plan
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    restart: always
+
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: postgresql://${DB_USER}:${DB_PASSWORD}@db:5432/cooking_plan
+      JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL}
+    depends_on:
+      - db
+    restart: always
+
+volumes:
+  postgres_data:</pre>
+
+      <p class="note">数据持久化：Postgres 数据存储在 Docker Volume <code>postgres_data</code> 中，
+        容器重建不会丢失数据。图片上传使用 Docker Volume <code>uploads</code>。</p>
+    </div>
+  </section>
+
+  <!-- 5 -->
+  <section id="s5">
+    <h2><span class="num">5</span>环境变量</h2>
+    <div class="card">
+      <p>创建 <code>.env</code> 文件（参考 <code>.env.example</code>）：</p>
+
+<pre># 数据库配置
+DB_USER=cooking_user
+DB_PASSWORD=<strong>强密码（32位随机）</strong>
+
+# JWT 密钥（用于会话加密）
+JWT_SECRET=<strong>强密钥（32位随机）</strong>
+
+# 应用配置
+NEXT_PUBLIC_BASE_URL=https://your-domain.com
+
+# 上传配置
+MAX_UPLOAD_SIZE=5242880
+ALLOWED_IMAGE_TYPES=image/jpeg,image/png,image/webp
+
+# 管理员配置（首次注册自动设为管理员）
+ADMIN_EMAIL=your@email.com</pre>
+
+      <p class="danger">⚠️ 生产环境必须使用强密码！推荐使用 <code>openssl rand -base64 32</code> 生成。</p>
+    </div>
+  </section>
+
+  <!-- 6 -->
+  <section id="s6">
+    <h2><span class="num">6</span>运维操作</h2>
+    <div class="card">
+      <h3>日志查看</h3>
+      <pre># 查看所有服务日志
+docker-compose logs -f
+
+# 只看应用日志
+docker-compose logs -f app
+
+# 只看数据库日志
+docker-compose logs -f db</pre>
+
+      <h3>数据备份</h3>
+      <pre># 手动备份 Postgres
+./auto_run.sh backup
+
+# 备份文件保存在 ./backups/ 目录</pre>
+
+      <h3>数据恢复</h3>
+      <pre># 从备份恢复（停服务 → 恢复 → 启服务）
+docker-compose down
+docker run --rm -v cooking_plan_postgres_data:/data -v $(pwd)/backups:/backup \
+  postgres:15-alpine sh -c "cat /backup/backup.sql | psql -U cooking_user cooking_plan"
+docker-compose up -d</pre>
+
+      <h3>更新部署</h3>
+      <pre># 拉取最新代码并重新部署
+git pull
+./auto_run.sh update</pre>
+
+      <h3>清理旧镜像</h3>
+      <pre>docker image prune -a -f</pre>
+    </div>
+  </section>
+
+  <!-- 7 -->
+  <section id="s7">
+    <h2><span class="num">7</span>常见问题</h2>
+    <div class="card">
+      <h3>Q1: 端口冲突</h3>
+      <p><b>问题：</b>3000 端口被占用</p>
+      <p><b>解决：</b>修改 <code>docker-compose.yml</code> 中 <code>ports: "3000:3000"</code> 为 <code>"8080:3000"</code></p>
+
+      <h3>Q2: 数据库连接失败</h3>
+      <p><b>问题：</b>app 无法连接 db</p>
+      <p><b>解决：</b>检查 <code>depends_on</code> 配置，等待 db 完全启动（健康检查）</p>
+
+      <h3>Q3: 图片上传失败</h3>
+      <p><b>问题：</b>上传后 404 或丢失</p>
+      <p><b>解决：</b>确保 <code>uploads</code> volume 正确挂载，检查容器内文件权限</p>
+
+      <h3>Q4: 内存不足</h3>
+      <p><b>问题：</b>服务器内存吃紧</p>
+      <p><b>解决：</b>给 Postgres 限制内存，或在 docker-compose.yml 中添加 <code>mem_limit</b></p>
+
+      <h3>Q5: 如何配置 HTTPS</h3>
+      <p><b>方案一：</b>使用腾讯云负载均衡 + SSL 证书</p>
+      <p><b>方案二：</b>服务器上装 Nginx 反向代理 + Let's Encrypt certbot</p>
+      <p class="note">推荐 Nginx 方案，灵活且免费：</p>
+<pre># 安装 certbot
+sudo apt install certbot python3-certbot-nginx
+
+# 自动配置 HTTPS
+sudo certbot --nginx -d your-domain.com</pre>
+    </div>
+  </section>
+
+  <footer>
+    Cooking-Plan · 腾讯云部署方案 v1.0 · Docker Compose 全容器化
+  </footer>
+
+</div>
+</body>
+</html>
