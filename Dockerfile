@@ -2,12 +2,17 @@
 FROM node:20-alpine AS deps
 WORKDIR /app
 
+# 国内镜像源加速（解决服务器访问 npm 官方源超时问题）
+RUN npm config set registry https://registry.npmmirror.com && \
+    npm config set sharp_binary_host "https://npmmirror.com/mirrors/sharp" && \
+    npm config set sharp_libvips_binary_host "https://npmmirror.com/mirrors/sharp-libvips"
+
 # 安装必要系统依赖（sharp + Next.js SWC 需要的 native 库）
 RUN apk add --no-cache libc6-compat
 
 COPY package*.json ./
-# 安装依赖（alpine 需要显式指定 musl 版本的 native 二进制）
-RUN npm ci --omit=optional && \
+# 安装依赖（使用镜像源，alpine 需要显式指定 musl 版本的 native 二进制）
+RUN npm ci --omit=optional --no-audit --no-fund && \
     npm rebuild sharp && \
     rm -rf /app/node_modules/@next/swc-* && \
     npm install @next/swc-linux-x64-musl@15.0.0 --no-save
@@ -15,6 +20,9 @@ RUN npm ci --omit=optional && \
 # ============ 阶段 2：构建 ============
 FROM node:20-alpine AS builder
 WORKDIR /app
+
+# 构建阶段也用国内镜像源
+RUN npm config set registry https://registry.npmmirror.com
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
