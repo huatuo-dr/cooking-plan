@@ -17,7 +17,8 @@ sleep 2
 # 同步数据库 schema
 echo "📦 同步数据库 schema..."
 cd /app
-node ./node_modules/drizzle-kit/bin.cjs push || {
+# drizzle-kit 0.20 需要 push:pg，0.30+ 用 push
+node ./node_modules/drizzle-kit/bin.cjs push:pg || {
   echo "❌ schema 同步失败"
   exit 1
 }
