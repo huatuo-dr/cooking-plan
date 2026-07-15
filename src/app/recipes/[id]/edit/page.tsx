@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getRecipeById, saveRecipe, UnifiedRecipe } from '@/lib/storage/client'
 
-export default function EditRecipePage({ params }: { params: { id: string } }) {
+export default function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = use(params)
   const router = useRouter()
   const [recipe, setRecipe] = useState<UnifiedRecipe | null>(null)
   const [loading, setLoading] = useState(true)
@@ -19,12 +20,12 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     loadRecipe()
-  }, [params.id])
+  }, [id])
 
   const loadRecipe = async () => {
     setLoading(true)
     try {
-      const data = await getRecipeById(params.id)
+      const data = await getRecipeById(id)
       if (data) {
         setRecipe(data)
         setTitle(data.title)
@@ -82,13 +83,13 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
     setSaving(true)
     try {
       await saveRecipe({
-        id: params.id,
+        id: id,
         title,
         imageUrl: imageUrl || undefined,
         ingredients: ingredients.filter(i => i.name),
         steps: steps.filter(s => s.text),
       })
-      router.push(`/recipes/${params.id}`)
+      router.push(`/recipes/${id}`)
     } catch (error) {
       alert('保存失败')
     } finally {
@@ -115,7 +116,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-3xl mx-auto px-4 py-4 flex items-center gap-4">
-          <Link href={`/recipes/${params.id}`} className="text-gray-600 hover:text-gray-900">
+          <Link href={`/recipes/${id}`} className="text-gray-600 hover:text-gray-900">
             ← 返回
           </Link>
           <h1 className="text-xl font-bold text-gray-900">编辑菜谱</h1>
@@ -320,7 +321,7 @@ export default function EditRecipePage({ params }: { params: { id: string } }) {
           {/* 提交按钮 */}
           <div className="flex justify-end gap-3">
             <Link
-              href={`/recipes/${params.id}`}
+              href={`/recipes/${id}`}
               className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
             >
               取消

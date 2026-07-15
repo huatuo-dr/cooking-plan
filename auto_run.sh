@@ -37,8 +37,8 @@ print_error() {
 
 # 检查必要文件
 check_requirements() {
-    if [ ! -f "docker-compose.yml" ]; then
-        print_error "docker-compose.yml 文件不存在！"
+    if [ ! -f "docker-compose.prod.yml" ]; then
+        print_error "docker-compose.prod.yml 文件不存在！"
         exit 1
     fi
 
@@ -67,12 +67,12 @@ check_requirements() {
     fi
 }
 
-# 获取 Docker Compose 命令
+# 获取 Docker Compose 命令（指定生产配置文件）
 get_docker_compose_cmd() {
     if docker compose version &> /dev/null; then
-        echo "docker compose"
+        echo "docker compose -f docker-compose.prod.yml"
     else
-        echo "docker-compose"
+        echo "docker-compose -f docker-compose.prod.yml"
     fi
 }
 

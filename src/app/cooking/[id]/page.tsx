@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import Link from 'next/link'
 import {
   getCookingSession,
@@ -138,20 +138,21 @@ function DraggableStep({
 export default function CookingSessionPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
+  const { id } = use(params)
   const [session, setSession] = useState<UnifiedCookingSession | null>(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     loadSession()
-  }, [params.id])
+  }, [id])
 
   const loadSession = async () => {
     setLoading(true)
     try {
-      const data = await getCookingSession(params.id)
+      const data = await getCookingSession(id)
       setSession(data)
     } catch (error) {
       console.error('加载失败', error)
@@ -175,7 +176,7 @@ export default function CookingSessionPage({
     setSaving(true)
     try {
       // #14 传入真实 stepIds
-      await updateStepOrder(params.id, newSteps.map((s: any) => s.id))
+      await updateStepOrder(id, newSteps.map((s: any) => s.id))
     } catch (error) {
       console.error('保存失败', error)
     } finally {
@@ -193,7 +194,9 @@ export default function CookingSessionPage({
 
     try {
       // #14 传入真实 stepId
-      await toggleStepDone(params.id, step.id, done)
+      if (step.id !== undefined) {
+        await toggleStepDone(id, step.id, done)
+      }
     } catch (error) {
       console.error('保存失败', error)
     }
@@ -209,7 +212,9 @@ export default function CookingSessionPage({
 
     try {
       // #14 传入真实 ingredientId
-      await toggleIngredientDone(params.id, ing.id, done)
+      if (ing.id !== undefined) {
+        await toggleIngredientDone(id, ing.id, done)
+      }
     } catch (error) {
       console.error('保存失败', error)
     }

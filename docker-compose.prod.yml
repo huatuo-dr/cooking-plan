@@ -1,0 +1,62 @@
+# 生产环境 Docker Compose 配置
+# 包含：Postgres 数据库 + Next.js 应用
+# 使用：docker compose -f docker-compose.prod.yml up -d
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: cooking_plan_db
+    restart: always
+    environment:
+      POSTGRES_DB: ${DB_NAME:-cooking_plan}
+      POSTGRES_USER: ${DB_USER:-cooking_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-cooking_user} -d ${DB_NAME:-cooking_plan}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    # 不暴露到主机外部（仅 docker 网络内部访问，更安全）
+    networks:
+      - cooking_network
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: cooking_plan_app
+    restart: always
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    environment:
+      # 数据库（docker 内部服务名 db）
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-cooking_plan}
+      DB_USER: ${DB_USER:-cooking_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      # 应用密钥
+      JWT_SECRET: ${JWT_SECRET}
+      NEXT_PUBLIC_BASE_URL: ${NEXT_PUBLIC_BASE_URL:-http://localhost:3000}
+      # 管理员初始化
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      NODE_ENV: production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # 持久化用户上传的图片
+      - uploads_data:/app/public/uploads
+    networks:
+      - cooking_network
+
+volumes:
+  postgres_data:
+  uploads_data:
+
+networks:
+  cooking_network:
+    driver: bridge

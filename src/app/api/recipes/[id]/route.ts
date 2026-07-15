@@ -4,10 +4,10 @@ import { recipeSchema } from '@/lib/validators'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const recipe = await getRecipe(Number(params.id))
+    const recipe = await getRecipe(Number((await params).id))
     if (!recipe) {
       return NextResponse.json({ error: '未找到或无权访问' }, { status: 404 })
     }
@@ -19,7 +19,7 @@ export async function GET(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json()
@@ -32,7 +32,7 @@ export async function PUT(
       )
     }
 
-    await updateRecipe(Number(params.id), parseResult.data)
+    await updateRecipe(Number((await params).id), parseResult.data)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     // G 错误脱敏
@@ -48,10 +48,10 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await deleteRecipe(Number(params.id))
+    await deleteRecipe(Number((await params).id))
     return NextResponse.json({ success: true })
   } catch (error: any) {
     const msg = error?.message || ''

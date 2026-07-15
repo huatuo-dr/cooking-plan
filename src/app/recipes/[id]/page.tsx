@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getRecipeById, deleteRecipe, UnifiedRecipe } from '@/lib/storage/client'
@@ -8,8 +8,9 @@ import { CopyRecipeButton } from '@/components/CopyRecipeButton'
 import { Trash2 } from 'lucide-react'
 import { useAuth } from '@/lib/hooks/useAuth'
 
-export default function RecipePage({ params }: { params: { id: string } }) {
+export default function RecipePage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter()
+  const { id } = use(params)
   const { isLoggedIn, isAdmin } = useAuth()
   const [recipe, setRecipe] = useState<UnifiedRecipe | null>(null)
   const [loading, setLoading] = useState(true)
@@ -17,12 +18,12 @@ export default function RecipePage({ params }: { params: { id: string } }) {
 
   useEffect(() => {
     loadRecipe()
-  }, [params.id])
+  }, [id])
 
   const loadRecipe = async () => {
     setLoading(true)
     try {
-      const data = await getRecipeById(params.id)
+      const data = await getRecipeById(id)
       setRecipe(data)
     } catch (error) {
       console.error('加载失败', error)
@@ -37,7 +38,7 @@ export default function RecipePage({ params }: { params: { id: string } }) {
 
     setDeleting(true)
     try {
-      await deleteRecipe(params.id)
+      await deleteRecipe(id)
       router.push('/')
     } catch (error) {
       alert('删除失败')

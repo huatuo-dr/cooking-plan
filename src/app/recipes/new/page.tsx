@@ -10,7 +10,7 @@ export default function NewRecipePage() {
   const [title, setTitle] = useState('')
   const [imageUrl, setImageUrl] = useState('')
   const [ingredients, setIngredients] = useState([{ name: '', amount: '' }])
-  const [steps, setSteps] = useState([{ phase: 'prep' as const, text: '' }])
+  const [steps, setSteps] = useState<{ phase: 'prep' | 'cook'; text: string }[]>([{ phase: 'prep', text: '' }])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -183,7 +183,7 @@ export default function NewRecipePage() {
               </label>
               <button
                 type="button"
-                onClick={() => setSteps([...steps, { phase: 'prep' as const, text: '' }])}
+                onClick={() => setSteps([...steps, { phase: 'prep', text: '' }])}
                 className="text-sm text-blue-600 hover:text-blue-700"
               >
                 + 添加步骤

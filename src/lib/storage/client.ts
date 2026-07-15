@@ -250,8 +250,8 @@ export interface UnifiedCookingSession {
   id: string
   name: string
   items: { recipeTitle: string; color: string }[]
-  steps: { phase: 'prep' | 'cook'; sourceRecipeTitle: string; color: string; text: string; sort: number; done: boolean }[]
-  ingredients: { sourceRecipeTitle: string; color: string; name: string; amount?: string; done: boolean }[]
+  steps: { id?: number; phase: 'prep' | 'cook'; sourceRecipeTitle: string; color: string; text: string; sort: number; done: boolean }[]
+  ingredients: { id?: number; sourceRecipeTitle: string; color: string; name: string; amount?: string; done: boolean }[]
   createdAt: string
   source: 'local' | 'cloud'
 }

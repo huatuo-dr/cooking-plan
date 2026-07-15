@@ -4,7 +4,7 @@ import { reorderSchema } from '@/lib/validators'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json()
@@ -15,7 +15,7 @@ export async function POST(
         { status: 400 }
       )
     }
-    await updateStepOrder(Number(params.id), parseResult.data.stepIds)
+    await updateStepOrder(Number((await params).id), parseResult.data.stepIds)
     return NextResponse.json({ success: true })
   } catch (error: any) {
     const msg = error?.message || '保存失败'

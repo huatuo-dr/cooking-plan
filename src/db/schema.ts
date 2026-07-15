@@ -42,7 +42,7 @@ export const recipes = pgTable('recipes', {
 // 食材表
 export const ingredients = pgTable('ingredients', {
   id: serial('id').primaryKey(),
-  recipeId: integer('recipe_id').references(() => recipes.id, { onDelete: 'cascade' }),
+  recipeId: integer('recipe_id').notNull().references(() => recipes.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 100 }).notNull(),
   amount: varchar('amount', { length: 50 }),
   sort: integer('sort').notNull().default(0),
@@ -51,7 +51,7 @@ export const ingredients = pgTable('ingredients', {
 // 步骤表（准备 + 制作合并）
 export const steps = pgTable('steps', {
   id: serial('id').primaryKey(),
-  recipeId: integer('recipe_id').references(() => recipes.id, { onDelete: 'cascade' }),
+  recipeId: integer('recipe_id').notNull().references(() => recipes.id, { onDelete: 'cascade' }),
   phase: stepPhaseEnum('phase').notNull(),
   text: varchar('text', { length: 1000 }).notNull(),
   sort: integer('sort').notNull().default(0),
@@ -69,7 +69,7 @@ export const cookingSessions = pgTable('cooking_sessions', {
 // Cooking 会话项（选了哪些菜 + 颜色）
 export const cookingSessionItems = pgTable('cooking_session_items', {
   id: serial('id').primaryKey(),
-  sessionId: integer('session_id').references(() => cookingSessions.id, { onDelete: 'cascade' }),
+  sessionId: integer('session_id').notNull().references(() => cookingSessions.id, { onDelete: 'cascade' }),
   recipeId: integer('recipe_id').references(() => recipes.id, { onDelete: 'set null' }),
   color: varchar('color', { length: 20 }).notNull(),
 })
@@ -77,7 +77,7 @@ export const cookingSessionItems = pgTable('cooking_session_items', {
 // Cooking 会话步骤快照
 export const cookingSessionSteps = pgTable('cooking_session_steps', {
   id: serial('id').primaryKey(),
-  sessionId: integer('session_id').references(() => cookingSessions.id, { onDelete: 'cascade' }),
+  sessionId: integer('session_id').notNull().references(() => cookingSessions.id, { onDelete: 'cascade' }),
   phase: stepPhaseEnum('phase').notNull(),
   sourceRecipeTitle: varchar('source_recipe_title', { length: 200 }).notNull(),
   color: varchar('color', { length: 20 }).notNull(),
@@ -89,7 +89,7 @@ export const cookingSessionSteps = pgTable('cooking_session_steps', {
 // Cooking 会话食材快照
 export const cookingSessionIngredients = pgTable('cooking_session_ingredients', {
   id: serial('id').primaryKey(),
-  sessionId: integer('session_id').references(() => cookingSessions.id, { onDelete: 'cascade' }),
+  sessionId: integer('session_id').notNull().references(() => cookingSessions.id, { onDelete: 'cascade' }),
   sourceRecipeTitle: varchar('source_recipe_title', { length: 200 }).notNull(),
   color: varchar('color', { length: 20 }).notNull(),
   name: varchar('name', { length: 100 }).notNull(),

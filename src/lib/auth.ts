@@ -30,7 +30,7 @@ export async function getSession(): Promise<SessionUser | null> {
 
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET)
-    const user = payload as SessionUser
+    const user = payload as unknown as SessionUser
 
     // #8 改密失效旧 session：校验签发时间是否早于 passwordChangedAt
     if (user.iat) {
@@ -124,9 +124,10 @@ export async function register(data: {
 
   let newUser
   try {
+    const inviteCode = data.inviteCode!  // 前面已校验非空
     newUser = await db.transaction(async (tx) => {
       // 在事务中消费邀请码
-      const consumeResult = await consumeInviteCodeInTx(tx, data.inviteCode)
+      const consumeResult = await consumeInviteCodeInTx(tx, inviteCode)
       if (!consumeResult.success) {
         throw new Error(consumeResult.error || '邀请码无效或已使用完毕')
       }

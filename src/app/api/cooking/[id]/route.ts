@@ -3,10 +3,10 @@ import { getCookingSession, deleteCookingSession } from '@/lib/actions/cooking'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const session = await getCookingSession(Number(params.id))
+    const session = await getCookingSession(Number((await params).id))
     if (!session) {
       return NextResponse.json({ error: '未找到该计划' }, { status: 404 })
     }
@@ -18,10 +18,10 @@ export async function GET(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await deleteCookingSession(Number(params.id))
+    await deleteCookingSession(Number((await params).id))
     return NextResponse.json({ success: true })
   } catch (error: any) {
     return NextResponse.json({ error: error.message || '删除失败' }, { status: 500 })

@@ -3,10 +3,10 @@ import { z } from 'zod'
 // 菜谱创建/更新校验
 export const recipeSchema = z.object({
   title: z.string().min(1, '菜谱名称不能为空').max(200, '菜谱名称不能超过 200 字符'),
-  imageUrl: z.string().max(500).optional().nullable(),
+  imageUrl: z.string().max(500).optional(),
   ingredients: z.array(z.object({
     name: z.string().min(1, '食材名称不能为空').max(100),
-    amount: z.string().max(50).optional().nullable(),
+    amount: z.string().max(50).optional(),
   })).min(1, '至少需要一种食材'),
   steps: z.array(z.object({
     phase: z.enum(['prep', 'cook']),
