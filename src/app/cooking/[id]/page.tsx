@@ -93,12 +93,6 @@ function DraggableStep({
         >
           <GripVertical size={24} />
         </button>
-        <div
-          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold"
-          style={{ backgroundColor: step.color, color: '#fff' }}
-        >
-          {index + 1}
-        </div>
         <div className="flex-1 min-w-0">
           {/* 菜谱名标签（突出显示） */}
           <div className="flex items-center gap-2 mb-2">
