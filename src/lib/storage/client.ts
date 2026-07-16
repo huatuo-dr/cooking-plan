@@ -266,12 +266,17 @@ export async function createCookingSession(name: string, recipes: UnifiedRecipe[
   const steps: any[] = []
   const ingredients: any[] = []
 
+  // 本地存储用唯一 id（云端由数据库生成，本地需要手动赋值）
+  let localStepIdCounter = 1
+  let localIngredientIdCounter = 1
+
   recipes.forEach((recipe, index) => {
     const color = COLORS[index % COLORS.length]
     items.push({ recipeTitle: recipe.title, color })
 
     recipe.steps.forEach(step => {
       steps.push({
+        id: localStepIdCounter++,  // 修复：必须分配唯一 id
         phase: step.phase,
         sourceRecipeTitle: recipe.title,
         color,
@@ -283,6 +288,7 @@ export async function createCookingSession(name: string, recipes: UnifiedRecipe[
 
     recipe.ingredients.forEach(ing => {
       ingredients.push({
+        id: localIngredientIdCounter++,  // 修复：必须分配唯一 id
         sourceRecipeTitle: recipe.title,
         color,
         name: ing.name,

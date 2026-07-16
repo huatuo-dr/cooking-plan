@@ -114,7 +114,35 @@ export async function getLocalCookingSessions(): Promise<LocalCookingSession[]> 
 }
 
 export async function getLocalCookingSession(id: number): Promise<LocalCookingSession | undefined> {
-  return await localDB.cookingSessions.get(id)
+  const session = await localDB.cookingSessions.get(id)
+  if (!session) return undefined
+
+  // 数据迁移：修复旧数据中 step/ingredient 没有 id 的问题
+  // 没有唯一 id 会导致排序时所有项都被识别为"第一个"
+  let needUpdate = false
+  let maxId = 0
+  for (const step of session.steps) {
+    if (step.id === undefined) {
+      step.id = ++maxId
+      needUpdate = true
+    } else {
+      maxId = Math.max(maxId, step.id)
+    }
+  }
+  maxId = 0
+  for (const ing of session.ingredients) {
+    if (ing.id === undefined) {
+      ing.id = ++maxId
+      needUpdate = true
+    } else {
+      maxId = Math.max(maxId, ing.id)
+    }
+  }
+  if (needUpdate) {
+    await localDB.cookingSessions.put(session)
+  }
+
+  return session
 }
 
 export async function deleteLocalCookingSession(id: number) {
