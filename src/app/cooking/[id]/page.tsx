@@ -18,9 +18,9 @@ import {
   SortableContext,
   useSortable,
   verticalListSortingStrategy,
-  arrayMove,
 } from '@dnd-kit/sortable'
 import { GripVertical } from 'lucide-react'
+import { getStepSortableId, reorderStepsBySortableIds } from '@/lib/cooking-timeline'
 
 interface Step {
   id?: number
@@ -44,10 +44,12 @@ interface Ingredient {
 function DraggableStep({
   step,
   index,
+  sortableId,
   onToggleDone,
 }: {
   step: Step
   index: number
+  sortableId: string
   onToggleDone: (index: number, done: boolean) => void
 }) {
   const {
@@ -57,7 +59,7 @@ function DraggableStep({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: `step-${index}` })
+  } = useSortable({ id: sortableId })
 
   const style = {
     transform: transform
@@ -161,16 +163,17 @@ export default function CookingSessionPage({
     const { active, over } = event
     if (!over || active.id === over.id) return
 
-    const oldIndex = Number(active.id.toString().replace('step-', ''))
-    const newIndex = Number(over.id.toString().replace('step-', ''))
-
-    const newSteps = arrayMove(session.steps, oldIndex, newIndex)
+    const { steps: newSteps, stepIds } = reorderStepsBySortableIds(
+      session.steps,
+      active.id,
+      over.id
+    )
     setSession({ ...session, steps: newSteps })
 
     setSaving(true)
     try {
       // #14 传入真实 stepIds
-      await updateStepOrder(id, newSteps.map((s: any) => s.id))
+      await updateStepOrder(id, stepIds)
     } catch (error) {
       console.error('保存失败', error)
     } finally {
@@ -337,18 +340,22 @@ export default function CookingSessionPage({
           </h2>
           <DndContext collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
             <SortableContext
-              items={session.steps.map((_, idx) => `step-${idx}`)}
+              items={session.steps.map((step, idx) => getStepSortableId(step, idx))}
               strategy={verticalListSortingStrategy}
             >
               <div className="space-y-3">
-                {session.steps.map((step: Step, index: number) => (
-                  <DraggableStep
-                    key={`step-${index}`}
-                    step={step}
-                    index={index}
-                    onToggleDone={handleToggleStepDone}
-                  />
-                ))}
+                {session.steps.map((step: Step, index: number) => {
+                  const sortableId = getStepSortableId(step, index)
+                  return (
+                    <DraggableStep
+                      key={sortableId}
+                      step={step}
+                      index={index}
+                      sortableId={sortableId}
+                      onToggleDone={handleToggleStepDone}
+                    />
+                  )
+                })}
               </div>
             </SortableContext>
           </DndContext>
