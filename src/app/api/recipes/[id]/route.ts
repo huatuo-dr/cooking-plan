@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getRecipe, updateRecipe, deleteRecipe } from '@/lib/actions/recipes'
-import { recipeSchema } from '@/lib/validators'
+import { recipeUpdateSchema } from '@/lib/validators'
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +24,7 @@ export async function PUT(
   try {
     const body = await request.json()
 
-    const parseResult = recipeSchema.safeParse(body)
+    const parseResult = recipeUpdateSchema.safeParse(body)
     if (!parseResult.success) {
       return NextResponse.json(
         { error: parseResult.error.issues[0]?.message || '输入不合法' },

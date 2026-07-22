@@ -4,14 +4,19 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getAllRecipes, createCookingSession, UnifiedRecipe } from '@/lib/storage/client'
+import { RecipeFilters } from '@/components/RecipeFilters'
+import { filterRecipesByQueryAndTags } from '@/lib/recipe-tags'
 
 export default function CookingPage() {
   const router = useRouter()
   const [recipes, setRecipes] = useState<UnifiedRecipe[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [planName, setPlanName] = useState('')
+  const [query, setQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const filteredRecipes = filterRecipesByQueryAndTags(recipes, { query, selectedTags })
 
   useEffect(() => {
     loadRecipes()
@@ -101,6 +106,15 @@ export default function CookingPage() {
             <label className="block text-sm font-medium text-gray-700 mb-2">
               选择菜谱 * (已选择 {selectedIds.size} 道)
             </label>
+            {recipes.length > 0 && (
+              <RecipeFilters
+                recipes={recipes}
+                query={query}
+                selectedTags={selectedTags}
+                onQueryChange={setQuery}
+                onSelectedTagsChange={setSelectedTags}
+              />
+            )}
             <div className="bg-white rounded-lg border border-gray-200 divide-y divide-gray-200">
               {recipes.length === 0 ? (
                 <div className="p-8 text-center text-gray-500">
@@ -109,8 +123,22 @@ export default function CookingPage() {
                     先创建一道菜吧
                   </Link>
                 </div>
+              ) : filteredRecipes.length === 0 ? (
+                <div className="p-8 text-center text-gray-500">
+                  <p className="mb-4">没有找到匹配菜谱</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setQuery('')
+                      setSelectedTags([])
+                    }}
+                    className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                  >
+                    清空筛选
+                  </button>
+                </div>
               ) : (
-                recipes.map((recipe) => (
+                filteredRecipes.map((recipe) => (
                   <label
                     key={recipe.id}
                     className="flex items-center p-4 hover:bg-gray-50 cursor-pointer"
@@ -127,6 +155,20 @@ export default function CookingPage() {
                         <span className="ml-2 px-2 py-0.5 bg-yellow-100 text-yellow-700 text-xs rounded">
                           本地
                         </span>
+                      )}
+                      {recipe.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {recipe.tags.slice(0, 3).map(tag => (
+                            <span key={tag} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                              {tag}
+                            </span>
+                          ))}
+                          {recipe.tags.length > 3 && (
+                            <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">
+                              +{recipe.tags.length - 3}
+                            </span>
+                          )}
+                        </div>
                       )}
                     </div>
                     {recipe.imageUrl && (

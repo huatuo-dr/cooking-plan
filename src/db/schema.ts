@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer, boolean, varchar, pgEnum } from 'drizzle-orm/pg-core'
+import { pgTable, serial, text, timestamp, integer, boolean, varchar, pgEnum, primaryKey, index } from 'drizzle-orm/pg-core'
 
 // 用户角色枚举（带 CHECK 约束）
 export const userRoleEnum = pgEnum('user_role', ['admin', 'user'])
@@ -38,6 +38,24 @@ export const recipes = pgTable('recipes', {
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 })
+
+// 菜谱标签表（全局复用，按规范化名称去重）
+export const recipeTags = pgTable('recipe_tags', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 20 }).notNull(),
+  normalizedName: varchar('normalized_name', { length: 20 }).notNull().unique(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+})
+
+// 菜谱与标签关联表
+export const recipeTagRelations = pgTable('recipe_tag_relations', {
+  recipeId: integer('recipe_id').notNull().references(() => recipes.id, { onDelete: 'cascade' }),
+  tagId: integer('tag_id').notNull().references(() => recipeTags.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  pk: primaryKey({ columns: [table.recipeId, table.tagId] }),
+  recipeIdIdx: index('recipe_tag_relations_recipe_id_idx').on(table.recipeId),
+  tagIdIdx: index('recipe_tag_relations_tag_id_idx').on(table.tagId),
+}))
 
 // 食材表
 export const ingredients = pgTable('ingredients', {
@@ -105,6 +123,10 @@ export type InvitationCode = typeof invitationCodes.$inferSelect
 export type NewInvitationCode = typeof invitationCodes.$inferInsert
 export type Recipe = typeof recipes.$inferSelect
 export type NewRecipe = typeof recipes.$inferInsert
+export type RecipeTag = typeof recipeTags.$inferSelect
+export type NewRecipeTag = typeof recipeTags.$inferInsert
+export type RecipeTagRelation = typeof recipeTagRelations.$inferSelect
+export type NewRecipeTagRelation = typeof recipeTagRelations.$inferInsert
 export type Ingredient = typeof ingredients.$inferSelect
 export type NewIngredient = typeof ingredients.$inferInsert
 export type Step = typeof steps.$inferSelect

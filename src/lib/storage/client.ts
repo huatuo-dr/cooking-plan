@@ -12,6 +12,7 @@ import {
   saveLocalCookingSession,
   deleteLocalCookingSession,
 } from './local'
+import { normalizeRecipeTags } from '@/lib/recipe-tags'
 
 // 云端 Cooking 会话列表接口
 interface CloudCookingSession {
@@ -29,10 +30,18 @@ export interface UnifiedRecipe {
   imageUrl?: string
   ingredients: { name: string; amount?: string }[]
   steps: { phase: 'prep' | 'cook'; text: string }[]
+  tags: string[]
   createdAt: string
   source: 'local' | 'cloud'
   isOfficial?: boolean  // 是否是官方（管理员）菜谱
   isMine?: boolean      // 是否是当前用户创建的
+}
+
+function normalizeRecipeIngredients(ingredients: any[] = []): { name: string; amount?: string }[] {
+  return ingredients.map(ingredient => ({
+    name: ingredient.name,
+    amount: ingredient.amount ?? undefined,
+  }))
 }
 
 // 检查登录状态（异步，通过 API 验证）
@@ -78,6 +87,7 @@ export async function getAllRecipes(): Promise<UnifiedRecipe[]> {
         imageUrl: r.imageUrl,
         ingredients: r.ingredients,
         steps: r.steps,
+        tags: r.tags || [],
         createdAt: r.createdAt,
         source: 'local' as const,
         isOfficial: false,
@@ -98,9 +108,10 @@ export async function getAllRecipes(): Promise<UnifiedRecipe[]> {
       recipes.push(...cloudRecipes.map((r: any) => ({
         id: `cloud-${r.id}`,
         title: r.title,
-        imageUrl: r.imageUrl,
-        ingredients: r.ingredients || [],
+        imageUrl: r.imageUrl ?? undefined,
+        ingredients: normalizeRecipeIngredients(r.ingredients || []),
         steps: r.steps || [],
+        tags: r.tags || [],
         createdAt: r.createdAt,
         source: 'cloud' as const,
         isOfficial: r.isOfficial || r.authorRole === 'admin',
@@ -131,6 +142,7 @@ export async function getRecipeById(id: string): Promise<UnifiedRecipe | null> {
       imageUrl: recipe.imageUrl,
       ingredients: recipe.ingredients,
       steps: recipe.steps,
+      tags: recipe.tags || [],
       createdAt: recipe.createdAt,
       source: 'local',
       isOfficial: false,
@@ -144,9 +156,10 @@ export async function getRecipeById(id: string): Promise<UnifiedRecipe | null> {
     return {
       id: `cloud-${recipe.id}`,
       title: recipe.title,
-      imageUrl: recipe.imageUrl,
-      ingredients: recipe.ingredients || [],
+      imageUrl: recipe.imageUrl ?? undefined,
+      ingredients: normalizeRecipeIngredients(recipe.ingredients || []),
       steps: recipe.steps || [],
+      tags: recipe.tags || [],
       createdAt: recipe.createdAt,
       source: 'cloud',
       isOfficial: recipe.isOfficial || recipe.authorRole === 'admin',
@@ -160,8 +173,9 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
   const loggedIn = await isLoggedIn()
 
   if (loggedIn) {
+    const tags = recipe.tags === undefined ? undefined : normalizeRecipeTags(recipe.tags).map(tag => tag.name)
     // 登录用户：保存到云端
-    const payload = {
+    const basePayload = {
       title: recipe.title,
       imageUrl: recipe.imageUrl,
       ingredients: recipe.ingredients || [],
@@ -171,6 +185,7 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
     if (recipe.id?.startsWith('cloud-')) {
       // 更新
       const id = recipe.id.replace('cloud-', '')
+      const payload = tags === undefined ? basePayload : { ...basePayload, tags }
       const response = await fetch(`/api/recipes/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -184,6 +199,7 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
       return { ...recipe, source: 'cloud' } as UnifiedRecipe
     } else {
       // 创建
+      const payload = { ...basePayload, tags: tags || [] }
       const response = await fetch('/api/recipes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -202,16 +218,23 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
         // 后端只返回主记录，显式补充 ingredients/steps 字段
         ingredients: recipe.ingredients || [],
         steps: recipe.steps || [],
+        tags: tags || [],
       }
     }
   } else {
+    const localId = recipe.id?.startsWith('local-') ? Number(recipe.id.replace('local-', '')) : undefined
+    const existingLocalRecipe = localId ? await getLocalRecipe(localId) : undefined
+    const tags = recipe.tags === undefined
+      ? (existingLocalRecipe?.tags || [])
+      : normalizeRecipeTags(recipe.tags).map(tag => tag.name)
     // 匿名用户：保存到本地
     const localRecipe: LocalRecipe = {
-      id: recipe.id?.startsWith('local-') ? Number(recipe.id.replace('local-', '')) : undefined,
+      id: localId,
       title: recipe.title,
       imageUrl: recipe.imageUrl,
       ingredients: recipe.ingredients || [],
       steps: recipe.steps || [],
+      tags,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     }
@@ -222,6 +245,7 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
       imageUrl: saved.imageUrl,
       ingredients: saved.ingredients,
       steps: saved.steps,
+      tags: saved.tags || [],
       createdAt: saved.createdAt,
       source: 'local',
     }

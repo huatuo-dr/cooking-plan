@@ -100,7 +100,20 @@ export default function RecipePage({ params }: { params: Promise<{ id: string }>
         )}
 
         {/* 菜谱标题 */}
-        <h2 className="text-3xl font-bold text-gray-900 mb-6">{recipe.title}</h2>
+        <h2 className="text-3xl font-bold text-gray-900 mb-3">{recipe.title}</h2>
+
+        {recipe.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-6">
+            {recipe.tags.map(tag => (
+              <span
+                key={tag}
+                className="px-3 py-1 bg-green-100 text-green-700 rounded-full text-sm"
+              >
+                {tag}
+              </span>
+            ))}
+          </div>
+        )}
 
         {/* 食材 */}
         <section className="mb-8">

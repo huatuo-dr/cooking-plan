@@ -35,6 +35,7 @@ export async function POST(request: NextRequest) {
         phase: s.phase,
         text: s.text,
       })),
+      tags: originalRecipe.tags || [],
     })
 
     return NextResponse.json(newRecipe)

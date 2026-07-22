@@ -6,6 +6,7 @@ export interface LocalRecipe {
   imageUrl?: string
   ingredients: { name: string; amount?: string }[]
   steps: { phase: 'prep' | 'cook'; text: string }[]
+  tags?: string[]
   createdAt: string
   updatedAt: string
 }
@@ -56,6 +57,14 @@ export class LocalRecipeDB extends Dexie {
       recipes: '++id, title, createdAt',
       cookingSessions: '++id, name, createdAt',
     })
+    this.version(3).stores({
+      recipes: '++id, title, createdAt',
+      cookingSessions: '++id, name, createdAt',
+    }).upgrade(tx => {
+      return tx.table('recipes').toCollection().modify(recipe => {
+        recipe.tags = recipe.tags || []
+      })
+    })
   }
 }
 
@@ -80,11 +89,13 @@ export async function saveLocalRecipe(recipe: LocalRecipe) {
 }
 
 export async function getLocalRecipes(): Promise<LocalRecipe[]> {
-  return await localDB.recipes.orderBy('createdAt').reverse().toArray()
+  const recipes = await localDB.recipes.orderBy('createdAt').reverse().toArray()
+  return recipes.map(recipe => ({ ...recipe, tags: recipe.tags || [] }))
 }
 
 export async function getLocalRecipe(id: number): Promise<LocalRecipe | undefined> {
-  return await localDB.recipes.get(id)
+  const recipe = await localDB.recipes.get(id)
+  return recipe ? { ...recipe, tags: recipe.tags || [] } : undefined
 }
 
 export async function deleteLocalRecipe(id: number) {

@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { saveRecipe } from '@/lib/storage/client'
+import { getAllRecipes, saveRecipe } from '@/lib/storage/client'
+import { RecipeTagsInput } from '@/components/RecipeTagsInput'
+import { getAvailableTags } from '@/lib/recipe-tags'
 
 export default function NewRecipePage() {
   const router = useRouter()
@@ -11,8 +13,23 @@ export default function NewRecipePage() {
   const [imageUrl, setImageUrl] = useState('')
   const [ingredients, setIngredients] = useState([{ name: '', amount: '' }])
   const [steps, setSteps] = useState<{ phase: 'prep' | 'cook'; text: string }[]>([{ phase: 'prep', text: '' }])
+  const [tags, setTags] = useState<string[]>([])
+  const [availableTags, setAvailableTags] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    loadAvailableTags()
+  }, [])
+
+  const loadAvailableTags = async () => {
+    try {
+      const recipes = await getAllRecipes()
+      setAvailableTags(getAvailableTags(recipes))
+    } catch (error) {
+      console.error('加载标签失败', error)
+    }
+  }
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -49,8 +66,16 @@ export default function NewRecipePage() {
       return
     }
 
-    if (ingredients.length === 0 || !ingredients[0].name) {
+    const validIngredients = ingredients.filter(i => i.name)
+    const validSteps = steps.filter(s => s.text)
+
+    if (validIngredients.length === 0) {
       alert('请至少添加一种食材')
+      return
+    }
+
+    if (validSteps.length === 0) {
+      alert('请至少添加一个步骤')
       return
     }
 
@@ -59,12 +84,13 @@ export default function NewRecipePage() {
       const saved = await saveRecipe({
         title,
         imageUrl: imageUrl || undefined,
-        ingredients: ingredients.filter(i => i.name),
-        steps: steps.filter(s => s.text),
+        ingredients: validIngredients,
+        steps: validSteps,
+        tags,
       })
       router.push(`/recipes/${saved.id}`)
     } catch (error) {
-      alert('保存失败')
+      alert(error instanceof Error ? error.message : '保存失败')
     } finally {
       setSaving(false)
     }
@@ -121,6 +147,12 @@ export default function NewRecipePage() {
               </div>
             </div>
           </div>
+
+          <RecipeTagsInput
+            value={tags}
+            availableTags={availableTags}
+            onChange={setTags}
+          />
 
           {/* 食材 */}
           <div className="mb-6">

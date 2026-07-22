@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cooking-Plan 菜谱搜索与标签方案设计</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e7e5e0;
+    --brand: #d9480f;
+    --brand-soft: #fff4ed;
+    --green: #2f9e44;
+    --blue: #1971c2;
+    --amber: #e8a317;
+    --red: #e03131;
+    --code-bg: #f5f3ee;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+
+  header.hero {
+    background: linear-gradient(135deg, #2b8a3e 0%, #37b24d 58%, #82c91e 100%);
+    color: #fff;
+    padding: 56px 20px 48px;
+    text-align: center;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 1px; }
+  header.hero .sub { font-size: 16px; opacity: .95; }
+  header.hero .meta { margin-top: 18px; font-size: 13px; opacity: .9; }
+  .badge {
+    display: inline-block;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    margin: 4px;
+  }
+
+  section { margin-top: 40px; }
+  h2 {
+    font-size: 22px;
+    margin: 0 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    background: var(--green);
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex: none;
+  }
+  h3 { font-size: 17px; margin: 22px 0 10px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-top: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  }
+  .lead {
+    background: var(--brand-soft);
+    border-left: 4px solid var(--brand);
+    padding: 16px 20px;
+    border-radius: 0 12px 12px 0;
+    margin-top: 16px;
+  }
+  .lead strong { color: var(--brand); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 10px; }
+
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 15px; }
+  th, td {
+    text-align: left;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  td.k { font-weight: 600; white-space: nowrap; }
+
+  ul.clean { list-style: none; padding-left: 0; margin: 8px 0; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; }
+  ul.clean li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 15px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+  }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.6;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  code { font-family: "SFMono-Regular", Consolas, Menlo, monospace; }
+
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 2px 4px 2px 0;
+  }
+  .pill.green { background: #ebfbee; color: var(--green); }
+  .pill.blue { background: #e7f5ff; color: var(--blue); }
+  .pill.amber { background: #fff9db; color: #b08300; }
+  .pill.red { background: #fff5f5; color: var(--red); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+
+  .decision {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: #fff;
+  }
+  .decision .q { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .decision .a { font-size: 16px; font-weight: 600; }
+
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 0 12px 48px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 30px;
+    height: 30px;
+    background: #ebfbee;
+    color: var(--green);
+    border: 1px solid #b2f2bb;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+  .toc { font-size: 14px; }
+  .toc a { color: var(--blue); text-decoration: none; margin-right: 14px; }
+  .toc a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>菜谱搜索与标签方案设计</h1>
+  <div class="sub">为菜谱浏览和 Cooking 计划选择增加快速定位能力</div>
+  <div class="meta">
+    <span class="badge">版本：评审稿</span>
+    <span class="badge">日期：2026-07-22</span>
+    <span class="badge">范围：搜索、标签、筛选</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="card toc">
+      <a href="#summary">设计结论</a>
+      <a href="#current">现状分析</a>
+      <a href="#scope">功能范围</a>
+      <a href="#data">数据模型</a>
+      <a href="#ui">交互设计</a>
+      <a href="#api">接口与数据流</a>
+      <a href="#migration">迁移策略</a>
+      <a href="#tests">测试计划</a>
+      <a href="#risks">风险与决策</a>
+    </div>
+  </section>
+
+  <section id="summary">
+    <h2><span class="num">1</span>设计结论</h2>
+    <div class="lead">
+      <strong>推荐方案：</strong>标签持久化保存，搜索和标签筛选在前端完成。云端菜谱使用规范化标签表，本地匿名菜谱使用 <code>tags: string[]</code> 保存。首页和创建 Cooking 计划页复用同一套过滤逻辑。
+    </div>
+    <div class="grid2">
+      <div class="decision">
+        <div class="q">为什么不先做后端搜索？</div>
+        <div class="a">当前菜谱规模适合前端过滤，复杂度更低，体验也足够快。</div>
+      </div>
+      <div class="decision">
+        <div class="q">标签编辑核心要求</div>
+        <div class="a">编辑菜谱时先展示已有标签，同时允许输入并创建新标签。</div>
+      </div>
+    </div>
+  </section>
+
+  <section id="current">
+    <h2><span class="num">2</span>现状分析</h2>
+    <div class="card">
+      <ul class="clean">
+        <li>首页 <code>src/app/page.tsx</code> 通过 <code>getAllRecipes()</code> 获取菜谱后直接展示卡片列表。</li>
+        <li>Cooking 计划创建页 <code>src/app/cooking/new/page.tsx</code> 也通过 <code>getAllRecipes()</code> 获取菜谱后展示选择列表。</li>
+        <li>云端菜谱存在 <code>recipes</code>、<code>ingredients</code>、<code>steps</code> 三类数据，当前没有标签字段。</li>
+        <li>匿名用户菜谱保存在 IndexedDB，当前 <code>LocalRecipe</code> 也没有标签字段。</li>
+        <li>官方菜谱由管理员用户创建，前端根据作者角色标记为官方。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="scope">
+    <h2><span class="num">3</span>功能范围</h2>
+    <div class="card">
+      <h3>本期包含</h3>
+      <ul class="clean">
+        <li>菜谱支持多个标签。</li>
+        <li>新建和编辑菜谱时可以添加、删除标签。</li>
+        <li>编辑标签区域先展示已有标签，用户可点选已有标签，也可输入新标签创建。</li>
+        <li>首页支持关键词搜索和标签筛选。</li>
+        <li>创建 Cooking 计划页支持关键词搜索和标签筛选。</li>
+        <li>搜索匹配菜谱名、食材名、标签名。</li>
+        <li>筛选状态下仍保留已选择的 Cooking 菜谱，避免用户筛选切换时丢失选择。</li>
+      </ul>
+
+      <h3>本期不包含</h3>
+      <ul class="clean">
+        <li>全文搜索步骤内容。步骤文本较长，默认纳入搜索容易产生噪声。</li>
+        <li>标签管理后台。标签通过菜谱编辑自然创建和复用。</li>
+        <li>分页、排序规则重做、推荐算法。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="data">
+    <h2><span class="num">4</span>数据模型</h2>
+    <div class="card">
+      <h3>云端数据库</h3>
+      <p>新增两张表，避免把标签直接塞进 <code>recipes</code> 字符串字段，方便去重、展示已有标签和后续扩展。唯一性约束使用规范化后的 <code>normalized_name</code>，展示时仍使用 <code>name</code>。</p>
+      <pre><code>recipe_tags
+- id serial primary key
+- name varchar(20) not null
+- normalized_name varchar(20) not null unique
+- created_at timestamp not null default now()
+
+recipe_tag_relations
+- recipe_id integer not null references recipes(id) on delete cascade
+- tag_id integer not null references recipe_tags(id) on delete cascade
+- primary key (recipe_id, tag_id)
+- index (recipe_id)
+- index (tag_id)</code></pre>
+
+      <p>Drizzle schema 需要显式声明复合主键和索引，避免实现时只靠字段注释表达约束。</p>
+      <pre><code>export const recipeTagRelations = pgTable('recipe_tag_relations', {
+  recipeId: integer('recipe_id').notNull().references(() =&gt; recipes.id, { onDelete: 'cascade' }),
+  tagId: integer('tag_id').notNull().references(() =&gt; recipeTags.id, { onDelete: 'cascade' }),
+}, (table) =&gt; ({
+  pk: primaryKey({ columns: [table.recipeId, table.tagId] }),
+  recipeIdIdx: index('recipe_tag_relations_recipe_id_idx').on(table.recipeId),
+  tagIdIdx: index('recipe_tag_relations_tag_id_idx').on(table.tagId),
+}))</code></pre>
+
+      <h3>本地 IndexedDB</h3>
+      <p>匿名菜谱直接在 <code>LocalRecipe</code> 上增加标签数组，历史本地数据读取时兼容为空数组。<code>saveRecipe()</code> 的本地保存路径必须把 <code>recipe.tags</code> 写入 <code>LocalRecipe.tags</code>，否则匿名新建或编辑菜谱会丢标签。</p>
+      <pre><code>interface LocalRecipe {
+  id?: number
+  title: string
+  imageUrl?: string
+  ingredients: { name: string; amount?: string }[]
+  steps: { phase: 'prep' | 'cook'; text: string }[]
+  tags: string[]
+  createdAt: string
+  updatedAt: string
+}</code></pre>
+
+      <h3>统一前端类型</h3>
+      <pre><code>interface UnifiedRecipe {
+  id: string
+  title: string
+  imageUrl?: string
+  ingredients: { name: string; amount?: string }[]
+  steps: { phase: 'prep' | 'cook'; text: string }[]
+  tags: string[]
+  createdAt: string
+  source: 'local' | 'cloud'
+  isOfficial?: boolean
+  isMine?: boolean
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="ui">
+    <h2><span class="num">5</span>交互设计</h2>
+    <div class="card">
+      <h3>首页浏览菜谱</h3>
+      <ul class="clean">
+        <li>在菜谱列表上方增加一行过滤工具。</li>
+        <li>左侧为搜索框，placeholder 为“搜索菜名、食材或标签”。</li>
+        <li>下方或右侧展示可用标签 chip，点击后加入筛选条件。</li>
+        <li>已选标签显示为激活态，支持再次点击取消。</li>
+        <li>多个标签默认使用 AND 逻辑：只展示同时包含所有已选标签的菜谱。</li>
+        <li>搜索和标签筛选同时生效。</li>
+        <li>无结果时显示“没有找到匹配菜谱”，并提供清空筛选按钮。</li>
+      </ul>
+
+      <h3>创建 Cooking 计划</h3>
+      <ul class="clean">
+        <li>在“选择菜谱”区域顶部增加相同的搜索框和标签筛选。</li>
+        <li>菜谱列表只展示过滤后的结果。</li>
+        <li>已选数量基于全部已选菜谱计算，不受当前过滤条件影响。</li>
+        <li>如果某道已选菜谱被筛选隐藏，选择状态仍保留，提交时仍会加入计划。</li>
+      </ul>
+
+      <h3>新建和编辑菜谱标签</h3>
+      <ul class="clean">
+        <li>在菜谱图片和食材之间增加“标签”区域。</li>
+        <li>先展示已有标签，来源必须是当前用户可见菜谱的标签集合。</li>
+        <li>已有标签可以直接从 <code>getAllRecipes()</code> 返回的可见菜谱中聚合；如果后续增加标签建议接口，后端也必须复用菜谱可见性条件，不能直接返回全局 <code>recipe_tags</code> 表。</li>
+        <li>点击已有标签即可添加到当前菜谱，再次点击或点击标签上的删除按钮可移除。</li>
+        <li>输入框允许创建新标签，按 Enter、逗号或点击“添加”完成创建。</li>
+        <li>新标签会立即显示为当前菜谱标签，保存菜谱后持久化。</li>
+        <li>前端提交前调用共享 <code>normalizeTags()</code>，后端 validator 和写入逻辑也必须再次调用同一个规范化函数。</li>
+        <li><code>normalizeTags()</code> 放在纯共享模块 <code>src/lib/recipe-tags.ts</code>，不能依赖 React、Next server APIs、数据库或浏览器 API，确保客户端表单、服务端 validator、服务端写入和过滤函数测试使用同一套规则。</li>
+        <li>规范化规则：去首尾空格、把中文全角空格转为空格、合并连续空白、大小写折叠生成 <code>normalizedName</code>、去重、过滤空标签。</li>
+      </ul>
+
+      <p class="note">建议限制：单个标签最多 20 个字符，每个菜谱最多 8 个标签。这样可以避免卡片和选择列表被标签撑开。</p>
+      <p class="note">详情页展示完整标签；首页卡片和 Cooking 选择列表只展示前 3 个标签，超出部分显示“+N”。这样用户编辑后能看到完整反馈，同时列表布局不会被撑开。</p>
+    </div>
+  </section>
+
+  <section id="api">
+    <h2><span class="num">6</span>接口与数据流</h2>
+    <div class="card">
+      <h3>云端接口</h3>
+      <table>
+        <thead>
+          <tr><th>接口</th><th>变化</th><th>说明</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k"><code>GET /api/recipes</code></td>
+            <td>返回 <code>tags</code></td>
+            <td>每个菜谱返回标签数组，供首页和 Cooking 计划页过滤。</td>
+          </tr>
+          <tr>
+            <td class="k"><code>GET /api/recipes/:id</code></td>
+            <td>返回 <code>tags</code></td>
+            <td>编辑页进入时展示当前菜谱已有标签。</td>
+          </tr>
+          <tr>
+            <td class="k"><code>POST /api/recipes</code></td>
+            <td>接收 <code>tags</code></td>
+            <td>创建菜谱时同步创建或复用标签。<code>src/lib/storage/client.ts</code> 的 <code>saveRecipe()</code> 云端 payload 必须包含 <code>tags: recipe.tags ?? []</code>。</td>
+          </tr>
+          <tr>
+            <td class="k"><code>PUT /api/recipes/:id</code></td>
+            <td>接收 <code>tags</code></td>
+            <td>更新菜谱时重建该菜谱的标签关联。<code>saveRecipe()</code> 更新路径也必须传递 <code>tags</code>。</td>
+          </tr>
+          <tr>
+            <td class="k"><code>POST /api/recipes/copy</code></td>
+            <td>复制 <code>tags</code></td>
+            <td>复制官方菜谱或可见菜谱时，除 title、image、ingredients、steps 外，也要把原菜谱标签传给 <code>createRecipe()</code>。</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>后端写入规则</h3>
+      <ul class="clean">
+        <li><code>recipeSchema</code> 增加 <code>tags</code> 字段校验，并通过共享 <code>normalizeTags()</code> 转换，防止绕过 UI 写入脏标签。</li>
+        <li><code>createRecipe()</code> 和 <code>updateRecipe()</code> 在同一个数据库事务内写菜谱、食材、步骤和标签关联。</li>
+        <li>创建或复用标签必须使用事务内 upsert：按 <code>normalized_name</code> 执行 <code>on conflict do nothing</code>，随后按规范化名称批量查询标签 ID。</li>
+        <li>更新菜谱时先删除该菜谱旧的 <code>recipe_tag_relations</code>，再插入新关联；不删除未被引用的标签记录，避免并发和历史引用问题。</li>
+        <li><code>GET /api/recipes</code> 已经批量查询食材和步骤，标签也必须按当前可见菜谱 ID 一次性批量查询并分组，不能在 <code>allRecipes.map()</code> 中逐条查询。</li>
+      </ul>
+
+      <h3>前端共享过滤逻辑</h3>
+      <p>新增纯函数模块，首页和 Cooking 计划页共同使用，避免两处实现不一致。</p>
+      <pre><code>filterRecipes(recipes, {
+  query: string,
+  selectedTags: string[]
+})
+
+匹配规则：
+1. query 为空时不限制关键词。
+2. query 命中菜谱名、食材名或标签名即匹配。
+3. selectedTags 为空时不限制标签。
+4. selectedTags 非空时，菜谱必须包含所有已选标签。</code></pre>
+
+      <h3>客户端保存路径</h3>
+      <p>标签不能只停留在页面组件状态里，所有创建、编辑、复制路径都要显式经过统一类型。</p>
+      <pre><code>const payload = {
+  title: recipe.title,
+  imageUrl: recipe.imageUrl,
+  ingredients: recipe.ingredients || [],
+  steps: recipe.steps || [],
+  tags: normalizeTags(recipe.tags || []).map(tag =&gt; tag.name),
+}
+
+const localRecipe: LocalRecipe = {
+  ...
+  tags: normalizeTags(recipe.tags || []).map(tag =&gt; tag.name),
+}</code></pre>
+    </div>
+  </section>
+
+  <section id="migration">
+    <h2><span class="num">7</span>迁移策略</h2>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <b>数据库 schema 增加标签表和关联表</b>
+          <span>使用 Drizzle schema 描述新表。当前项目开发和生产入口都采用 Drizzle <code>push</code> 流程，开发运行 <code>npm run db:push</code>，生产容器启动时由 <code>scripts/entrypoint.sh</code> 自动执行 schema 同步；如果后续切换为 migration 流程，再补充正式迁移文件。</span>
+        </li>
+        <li>
+          <b>兼容旧菜谱</b>
+          <span>现有云端和本地菜谱默认标签为空数组，不影响现有访问。</span>
+        </li>
+        <li>
+          <b>官方菜谱标签</b>
+          <span>第一版不强制自动补标签，管理员可以进入编辑页手动添加。若评审通过，也可以为已导入的 36 道官方菜谱补一份初始标签脚本。</span>
+        </li>
+        <li>
+          <b>本地 IndexedDB 升级</b>
+          <span>Dexie 版本递增，读取旧数据时用 <code>recipe.tags ?? []</code> 兜底。</span>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="tests">
+    <h2><span class="num">8</span>测试计划</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>测试对象</th><th>重点验证</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">标签规范化</td>
+            <td>去空格、全角空格处理、连续空白合并、大小写折叠、去重、过滤空标签、20 字符长度限制、每菜最多 8 个标签。</td>
+          </tr>
+          <tr>
+            <td class="k">过滤函数</td>
+            <td>关键词匹配菜名、食材、标签；多标签 AND 筛选；无条件返回全部。</td>
+          </tr>
+          <tr>
+            <td class="k">云端保存</td>
+            <td>创建菜谱保存标签；编辑菜谱替换标签；复制菜谱保留标签；删除菜谱级联删除关联；并发创建相同标签不会 500。</td>
+          </tr>
+          <tr>
+            <td class="k">本地保存</td>
+            <td>匿名菜谱保存标签；旧本地菜谱没有标签时正常展示。</td>
+          </tr>
+          <tr>
+            <td class="k">Cooking 选择页</td>
+            <td>筛选后已选菜谱不丢失，提交计划使用全部已选项。</td>
+          </tr>
+          <tr>
+            <td class="k">可见性与性能</td>
+            <td>已有标签只来自可见菜谱；不返回其他用户私有标签；菜谱列表标签查询无 N+1。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="risks">
+    <h2><span class="num">9</span>风险与待确认点</h2>
+    <div class="card">
+      <h3>主要风险</h3>
+      <ul class="clean">
+        <li>如果标签不规范，后续会出现“牛肉”“牛 肉”“牛肉类”等重复语义标签。第一版通过共享 <code>normalizeTags()</code>、<code>normalized_name</code> 唯一约束和已有标签点选降低这个问题。</li>
+        <li>全局 <code>recipe_tags</code> 表意味着同一个 <code>normalized_name</code> 共享一个展示名。例如先创建 <code>beef</code> 后创建 <code>Beef</code> 时，展示名可能沿用已有记录。当前接受这个取舍，因为标签主要用于筛选和复用；如后续需要保留每个菜谱提交时的展示文本，再把展示名下放到关联表或改成按用户隔离标签。</li>
+        <li>标签太多会影响卡片布局，因此每道菜最多 8 个标签，列表只展示前 3 个标签，详情页展示完整标签。</li>
+        <li>前端过滤适合当前规模。如果未来菜谱数量增长到上千级，再迁移到后端搜索和分页。</li>
+      </ul>
+
+      <h3>待确认点</h3>
+      <ul class="clean">
+        <li>官方 36 道菜是否需要我在实现时顺手整理一版初始标签。</li>
+        <li>多标签筛选是否接受默认 AND 逻辑。如果你更希望“任意一个标签命中即可”，可以改为 OR。</li>
+        <li>搜索是否需要包含步骤文本。当前建议不包含，以免结果过宽。</li>
+      </ul>
+    </div>
+  </section>
+</main>
+</body>
+</html>

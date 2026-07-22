@@ -39,6 +39,7 @@ export function CopyRecipeButton({ recipe, isLoggedIn }: CopyRecipeButtonProps) 
           imageUrl: recipe.imageUrl,
           ingredients: recipe.ingredients,
           steps: recipe.steps,
+          tags: recipe.tags,
         })
         router.push(`/recipes/${saved.id}/edit`)
       }

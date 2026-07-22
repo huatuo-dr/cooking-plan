@@ -1,12 +1,21 @@
 'use server'
 
 import { db } from '@/db'
-import { recipes, ingredients, steps, users } from '@/db/schema'
-import { eq, or, isNull, inArray } from 'drizzle-orm'
+import { recipes, ingredients, steps, users, recipeTags, recipeTagRelations } from '@/db/schema'
+import { eq, or, inArray } from 'drizzle-orm'
 import { revalidatePath } from 'next/cache'
 import { writeFile } from 'fs/promises'
 import path from 'path'
 import { getSession } from '@/lib/auth'
+import { normalizeRecipeTags } from '@/lib/recipe-tags'
+
+type RecipeInput = {
+  title: string
+  imageUrl?: string
+  ingredients: { name: string; amount?: string }[]
+  steps: { phase: 'prep' | 'cook'; text: string }[]
+  tags?: string[]
+}
 
 // #1 权限隔离：根据登录状态返回可见的菜谱
 // - 匿名用户：只看 admin 菜谱
@@ -34,7 +43,7 @@ export async function getRecipes() {
     .where(whereCondition)
     .orderBy(recipes.createdAt)
 
-  // 批量获取所有食材和步骤（避免 N+1）
+  // 批量获取所有食材、步骤和标签（避免 N+1）
   const recipeIds = allRecipes.map(r => r.id)
   if (recipeIds.length === 0) return []
 
@@ -47,6 +56,16 @@ export async function getRecipes() {
     .from(steps)
     .where(inArray(steps.recipeId, recipeIds))
     .orderBy(steps.sort)
+
+  const allTags = await db
+    .select({
+      recipeId: recipeTagRelations.recipeId,
+      name: recipeTags.name,
+    })
+    .from(recipeTagRelations)
+    .innerJoin(recipeTags, eq(recipeTagRelations.tagId, recipeTags.id))
+    .where(inArray(recipeTagRelations.recipeId, recipeIds))
+    .orderBy(recipeTags.name)
 
   // 按菜谱 ID 分组
   const ingredientsByRecipe = new Map<number, typeof allIngredients>()
@@ -65,11 +84,20 @@ export async function getRecipes() {
     stepsByRecipe.get(step.recipeId)!.push(step)
   }
 
+  const tagsByRecipe = new Map<number, string[]>()
+  for (const tag of allTags) {
+    if (!tagsByRecipe.has(tag.recipeId)) {
+      tagsByRecipe.set(tag.recipeId, [])
+    }
+    tagsByRecipe.get(tag.recipeId)!.push(tag.name)
+  }
+
   return allRecipes.map(recipe => ({
     ...recipe,
     isOfficial: recipe.authorRole === 'admin',
     ingredients: ingredientsByRecipe.get(recipe.id) || [],
     steps: stepsByRecipe.get(recipe.id) || [],
+    tags: tagsByRecipe.get(recipe.id) || [],
   }))
 }
 
@@ -114,20 +142,23 @@ export async function getRecipe(id: number) {
     .where(eq(steps.recipeId, id))
     .orderBy(steps.sort)
 
+  const recipeTagRows = await db
+    .select({ name: recipeTags.name })
+    .from(recipeTagRelations)
+    .innerJoin(recipeTags, eq(recipeTagRelations.tagId, recipeTags.id))
+    .where(eq(recipeTagRelations.recipeId, id))
+    .orderBy(recipeTags.name)
+
   return {
     ...recipe,
     isOfficial,
     ingredients: recipeIngredients,
     steps: recipeSteps,
+    tags: recipeTagRows.map(tag => tag.name),
   }
 }
 
-export async function createRecipe(data: {
-  title: string
-  imageUrl?: string
-  ingredients: { name: string; amount?: string }[]
-  steps: { phase: 'prep' | 'cook'; text: string }[]
-}) {
+export async function createRecipe(data: RecipeInput) {
   // 获取当前登录用户
   const session = await getSession()
   if (!session) {
@@ -166,6 +197,8 @@ export async function createRecipe(data: {
       )
     }
 
+    await syncRecipeTags(tx, recipe.id, data.tags || [])
+
     return recipe
   })
 
@@ -173,12 +206,7 @@ export async function createRecipe(data: {
   return result
 }
 
-export async function updateRecipe(id: number, data: {
-  title: string
-  imageUrl?: string
-  ingredients: { name: string; amount?: string }[]
-  steps: { phase: 'prep' | 'cook'; text: string }[]
-}) {
+export async function updateRecipe(id: number, data: RecipeInput) {
   // 权限验证：需要登录
   const session = await getSession()
   if (!session) {
@@ -186,7 +214,7 @@ export async function updateRecipe(id: number, data: {
   }
 
   // C + A 使用事务：在事务中查询并校验权限，确保原子性
-  return await db.transaction(async (tx) => {
+  await db.transaction(async (tx) => {
     const recipeInfo = await tx
       .select({ userId: recipes.userId, authorRole: users.role })
       .from(recipes)
@@ -239,6 +267,10 @@ export async function updateRecipe(id: number, data: {
           sort: index,
         }))
       )
+    }
+
+    if (data.tags !== undefined) {
+      await syncRecipeTags(tx, id, data.tags)
     }
 
     // revalidatePath 移到事务外（事务内调用无意义）
@@ -297,4 +329,41 @@ export async function uploadImage(file: File): Promise<string> {
   await writeFile(filepath, buffer)
 
   return `/uploads/${filename}`
+}
+
+async function syncRecipeTags(tx: any, recipeId: number, tags: string[]) {
+  const normalizedTags = normalizeRecipeTags(tags)
+
+  await tx.delete(recipeTagRelations).where(eq(recipeTagRelations.recipeId, recipeId))
+
+  if (normalizedTags.length === 0) return
+
+  await tx.insert(recipeTags)
+    .values(normalizedTags.map(tag => ({
+      name: tag.name,
+      normalizedName: tag.normalizedName,
+    })))
+    .onConflictDoNothing({ target: recipeTags.normalizedName })
+
+  const tagRows = await tx
+    .select({
+      id: recipeTags.id,
+      normalizedName: recipeTags.normalizedName,
+    })
+    .from(recipeTags)
+    .where(inArray(recipeTags.normalizedName, normalizedTags.map(tag => tag.normalizedName)))
+
+  const tagIdByNormalizedName = new Map(tagRows.map((tag: { id: number; normalizedName: string }) => [tag.normalizedName, tag.id]))
+  const relations = normalizedTags
+    .map(tag => {
+      const tagId = tagIdByNormalizedName.get(tag.normalizedName)
+      return tagId ? { recipeId, tagId } : null
+    })
+    .filter((relation): relation is { recipeId: number; tagId: number } => relation !== null)
+
+  if (relations.length > 0) {
+    await tx.insert(recipeTagRelations)
+      .values(relations)
+      .onConflictDoNothing()
+  }
 }

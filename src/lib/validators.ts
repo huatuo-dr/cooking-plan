@@ -1,20 +1,46 @@
 import { z } from 'zod'
+import { normalizeRecipeTags } from './recipe-tags'
+
+const normalizeTagsForSchema = (tags: string[], ctx: z.RefinementCtx) => {
+  try {
+    return normalizeRecipeTags(tags).map(tag => tag.name)
+  } catch (error) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: error instanceof Error ? error.message : '标签不合法',
+    })
+    return z.NEVER
+  }
+}
+
+const tagsSchema = z.array(z.string()).optional().default([]).transform(normalizeTagsForSchema)
+const optionalTagsSchema = z.array(z.string()).optional().transform((tags, ctx) => (
+  tags === undefined ? undefined : normalizeTagsForSchema(tags, ctx)
+))
+const optionalNullableString = (max: number) => z.string().max(max).nullish().transform(value => value ?? undefined)
 
 // 菜谱创建/更新校验
 export const recipeSchema = z.object({
   title: z.string().min(1, '菜谱名称不能为空').max(200, '菜谱名称不能超过 200 字符'),
-  imageUrl: z.string().max(500).optional(),
+  imageUrl: optionalNullableString(500),
   ingredients: z.array(z.object({
     name: z.string().min(1, '食材名称不能为空').max(100),
-    amount: z.string().max(50).optional(),
+    amount: optionalNullableString(50),
   })).min(1, '至少需要一种食材'),
   steps: z.array(z.object({
     phase: z.enum(['prep', 'cook']),
     text: z.string().min(1, '步骤内容不能为空').max(1000),
   })).min(1, '至少需要一个步骤'),
+  tags: tagsSchema,
 })
 
 export type RecipeInput = z.infer<typeof recipeSchema>
+
+export const recipeUpdateSchema = recipeSchema.extend({
+  tags: optionalTagsSchema,
+})
+
+export type RecipeUpdateInput = z.infer<typeof recipeUpdateSchema>
 
 // Cooking 计划创建校验
 export const cookingCreateSchema = z.object({

@@ -4,11 +4,16 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { getAllRecipes, UnifiedRecipe } from '@/lib/storage/client'
 import { useAuth } from '@/lib/hooks/useAuth'
+import { RecipeFilters } from '@/components/RecipeFilters'
+import { filterRecipesByQueryAndTags } from '@/lib/recipe-tags'
 
 export default function HomePage() {
   const { user, isLoggedIn, isAdmin } = useAuth()
   const [recipes, setRecipes] = useState<UnifiedRecipe[]>([])
+  const [query, setQuery] = useState('')
+  const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
+  const filteredRecipes = filterRecipesByQueryAndTags(recipes, { query, selectedTags })
 
   // #12 登录态变化时重新加载菜谱
   useEffect(() => {
@@ -94,6 +99,16 @@ export default function HomePage() {
           </div>
         )}
 
+        {!loading && recipes.length > 0 && (
+          <RecipeFilters
+            recipes={recipes}
+            query={query}
+            selectedTags={selectedTags}
+            onQueryChange={setQuery}
+            onSelectedTagsChange={setSelectedTags}
+          />
+        )}
+
         {loading ? (
           <div className="text-center py-12 text-gray-500">加载中...</div>
         ) : recipes.length === 0 ? (
@@ -106,9 +121,23 @@ export default function HomePage() {
               创建菜谱
             </Link>
           </div>
+        ) : filteredRecipes.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 mb-4">没有找到匹配菜谱</p>
+            <button
+              type="button"
+              onClick={() => {
+                setQuery('')
+                setSelectedTags([])
+              }}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              清空筛选
+            </button>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recipes.map((recipe) => (
+            {filteredRecipes.map((recipe) => (
               <Link
                 key={recipe.id}
                 href={`/recipes/${recipe.id}`}
@@ -147,6 +176,20 @@ export default function HomePage() {
                 )}
                 <div className="p-4">
                   <h3 className="font-medium text-gray-900">{recipe.title}</h3>
+                  {recipe.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {recipe.tags.slice(0, 3).map(tag => (
+                        <span key={tag} className="px-2 py-0.5 bg-green-100 text-green-700 text-xs rounded-full">
+                          {tag}
+                        </span>
+                      ))}
+                      {recipe.tags.length > 3 && (
+                        <span className="px-2 py-0.5 bg-gray-100 text-gray-500 text-xs rounded-full">
+                          +{recipe.tags.length - 3}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   <p className="text-sm text-gray-500 mt-1">
                     {new Date(recipe.createdAt).toLocaleDateString('zh-CN')}
                   </p>

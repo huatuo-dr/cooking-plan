@@ -3,7 +3,9 @@
 import { useState, useEffect, use } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { getRecipeById, saveRecipe, UnifiedRecipe } from '@/lib/storage/client'
+import { getAllRecipes, getRecipeById, saveRecipe, UnifiedRecipe } from '@/lib/storage/client'
+import { RecipeTagsInput } from '@/components/RecipeTagsInput'
+import { getAvailableTags } from '@/lib/recipe-tags'
 
 export default function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -16,6 +18,8 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
   const [imageUrl, setImageUrl] = useState('')
   const [ingredients, setIngredients] = useState<{ name: string; amount?: string }[]>([])
   const [steps, setSteps] = useState<{ phase: 'prep' | 'cook'; text: string }[]>([])
+  const [tags, setTags] = useState<string[]>([])
+  const [availableTags, setAvailableTags] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
 
   useEffect(() => {
@@ -32,7 +36,10 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
         setImageUrl(data.imageUrl || '')
         setIngredients(data.ingredients.length > 0 ? data.ingredients : [{ name: '', amount: '' }])
         setSteps(data.steps.length > 0 ? data.steps : [{ phase: 'prep', text: '' }])
+        setTags(data.tags || [])
       }
+      const recipes = await getAllRecipes()
+      setAvailableTags(getAvailableTags(recipes))
     } catch (error) {
       console.error('加载失败', error)
     } finally {
@@ -75,8 +82,16 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
       return
     }
 
-    if (ingredients.length === 0 || !ingredients[0].name) {
+    const validIngredients = ingredients.filter(i => i.name)
+    const validSteps = steps.filter(s => s.text)
+
+    if (validIngredients.length === 0) {
       alert('请至少添加一种食材')
+      return
+    }
+
+    if (validSteps.length === 0) {
+      alert('请至少添加一个步骤')
       return
     }
 
@@ -86,12 +101,13 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
         id: id,
         title,
         imageUrl: imageUrl || undefined,
-        ingredients: ingredients.filter(i => i.name),
-        steps: steps.filter(s => s.text),
+        ingredients: validIngredients,
+        steps: validSteps,
+        tags,
       })
       router.push(`/recipes/${id}`)
     } catch (error) {
-      alert('保存失败')
+      alert(error instanceof Error ? error.message : '保存失败')
     } finally {
       setSaving(false)
     }
@@ -167,6 +183,12 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
               </div>
             </div>
           </div>
+
+          <RecipeTagsInput
+            value={tags}
+            availableTags={availableTags}
+            onChange={setTags}
+          />
 
           {/* 食材 */}
           <div className="mb-6">
