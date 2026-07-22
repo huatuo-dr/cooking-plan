@@ -2,18 +2,24 @@
 
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { getAllRecipes, UnifiedRecipe } from '@/lib/storage/client'
+import { getAllRecipes, UnifiedRecipe, createRecipeExportJson, type ImportRecipesResult } from '@/lib/storage/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { RecipeFilters } from '@/components/RecipeFilters'
+import { RecipeImportDialog } from '@/components/RecipeImportDialog'
 import { filterRecipesByQueryAndTags } from '@/lib/recipe-tags'
+import { CheckSquare, Download, Square, Upload, X } from 'lucide-react'
 
 export default function HomePage() {
   const { user, isLoggedIn, isAdmin } = useAuth()
   const [recipes, setRecipes] = useState<UnifiedRecipe[]>([])
   const [query, setQuery] = useState('')
   const [selectedTags, setSelectedTags] = useState<string[]>([])
+  const [bulkExportMode, setBulkExportMode] = useState(false)
+  const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([])
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const filteredRecipes = filterRecipesByQueryAndTags(recipes, { query, selectedTags })
+  const selectedRecipeIdSet = new Set(selectedRecipeIds)
 
   // #12 登录态变化时重新加载菜谱
   useEffect(() => {
@@ -30,6 +36,50 @@ export default function HomePage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  const toggleRecipeSelection = (id: string) => {
+    setSelectedRecipeIds(current => (
+      current.includes(id)
+        ? current.filter(item => item !== id)
+        : [...current, id]
+    ))
+  }
+
+  const selectAllFilteredRecipes = () => {
+    setSelectedRecipeIds(filteredRecipes.map(recipe => recipe.id))
+  }
+
+  const clearSelection = () => {
+    setSelectedRecipeIds([])
+  }
+
+  const exitBulkExportMode = () => {
+    setBulkExportMode(false)
+    clearSelection()
+  }
+
+  const exportSelectedRecipes = () => {
+    const selectedRecipes = recipes.filter(recipe => selectedRecipeIdSet.has(recipe.id))
+    if (selectedRecipes.length === 0) {
+      alert('请选择要导出的菜谱')
+      return
+    }
+
+    const json = createRecipeExportJson(selectedRecipes)
+    const blob = new Blob([json], { type: 'application/json;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    const timestamp = new Date().toISOString().slice(0, 16).replace(/[-:T]/g, '')
+    link.href = url
+    link.download = `cooking-plan-recipes-${timestamp}.json`
+    link.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleImported = (result: ImportRecipesResult) => {
+    alert(`成功导入 ${result.importedCount} 道菜谱${result.renamedCount > 0 ? `，其中 ${result.renamedCount} 道已自动改名` : ''}`)
+    loadData()
   }
 
   return (
@@ -81,6 +131,22 @@ export default function HomePage() {
             >
               + 新建菜谱
             </Link>
+            <button
+              type="button"
+              onClick={() => setImportDialogOpen(true)}
+              className="px-4 py-2 border border-blue-600 text-blue-600 rounded-lg hover:bg-blue-50 font-medium flex items-center gap-2"
+            >
+              <Upload size={18} />
+              导入 JSON
+            </button>
+            <button
+              type="button"
+              onClick={() => setBulkExportMode(true)}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium flex items-center gap-2"
+            >
+              <Download size={18} />
+              批量导出
+            </button>
           </div>
         </div>
       </header>
@@ -107,6 +173,48 @@ export default function HomePage() {
             onQueryChange={setQuery}
             onSelectedTagsChange={setSelectedTags}
           />
+        )}
+
+        {bulkExportMode && !loading && recipes.length > 0 && (
+          <div className="mb-6 p-4 bg-white border border-gray-200 rounded-lg flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-gray-700">
+              已选择 <span className="font-semibold">{selectedRecipeIds.length}</span> 道菜谱
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={selectAllFilteredRecipes}
+                className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2"
+              >
+                <CheckSquare size={16} />
+                全选当前结果
+              </button>
+              <button
+                type="button"
+                onClick={clearSelection}
+                className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm"
+              >
+                取消选择
+              </button>
+              <button
+                type="button"
+                onClick={exportSelectedRecipes}
+                disabled={selectedRecipeIds.length === 0}
+                className="px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-sm flex items-center gap-2"
+              >
+                <Download size={16} />
+                导出 JSON
+              </button>
+              <button
+                type="button"
+                onClick={exitBulkExportMode}
+                className="px-3 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 text-sm flex items-center gap-2"
+              >
+                <X size={16} />
+                退出
+              </button>
+            </div>
+          </div>
         )}
 
         {loading ? (
@@ -137,12 +245,23 @@ export default function HomePage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRecipes.map((recipe) => (
-              <Link
-                key={recipe.id}
-                href={`/recipes/${recipe.id}`}
-                className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden relative"
-              >
+            {filteredRecipes.map((recipe) => {
+              const cardContent = (
+                <>
+                  {bulkExportMode && (
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        toggleRecipeSelection(recipe.id)
+                      }}
+                      className="absolute top-2 left-2 z-20 p-2 bg-white/95 border border-gray-200 rounded-lg shadow-sm text-blue-600"
+                      aria-label={selectedRecipeIdSet.has(recipe.id) ? '取消选择' : '选择菜谱'}
+                    >
+                      {selectedRecipeIdSet.has(recipe.id) ? <CheckSquare size={20} /> : <Square size={20} />}
+                    </button>
+                  )}
                 {/* 来源标签 */}
                 <div className="absolute top-2 right-2 z-10 flex gap-1">
                   {recipe.isOfficial && (
@@ -194,11 +313,38 @@ export default function HomePage() {
                     {new Date(recipe.createdAt).toLocaleDateString('zh-CN')}
                   </p>
                 </div>
-              </Link>
-            ))}
+                </>
+              )
+
+              return bulkExportMode ? (
+                <div
+                  key={recipe.id}
+                  onClick={() => toggleRecipeSelection(recipe.id)}
+                  className={`bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden relative cursor-pointer border ${
+                    selectedRecipeIdSet.has(recipe.id) ? 'border-blue-500 ring-2 ring-blue-100' : 'border-transparent'
+                  }`}
+                >
+                  {cardContent}
+                </div>
+              ) : (
+                <Link
+                  key={recipe.id}
+                  href={`/recipes/${recipe.id}`}
+                  className="bg-white rounded-lg shadow-sm hover:shadow-md transition-shadow overflow-hidden relative"
+                >
+                  {cardContent}
+                </Link>
+              )
+            })}
           </div>
         )}
       </main>
+
+      <RecipeImportDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onImported={handleImported}
+      />
     </div>
   )
 }

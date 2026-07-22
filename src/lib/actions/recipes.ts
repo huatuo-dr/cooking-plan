@@ -7,7 +7,7 @@ import { revalidatePath } from 'next/cache'
 import { writeFile } from 'fs/promises'
 import path from 'path'
 import { getSession } from '@/lib/auth'
-import { normalizeRecipeTags } from '@/lib/recipe-tags'
+import { syncRecipeTagsInTx } from '@/lib/actions/recipe-tags'
 
 type RecipeInput = {
   title: string
@@ -197,7 +197,7 @@ export async function createRecipe(data: RecipeInput) {
       )
     }
 
-    await syncRecipeTags(tx, recipe.id, data.tags || [])
+    await syncRecipeTagsInTx(tx, recipe.id, data.tags || [])
 
     return recipe
   })
@@ -270,7 +270,7 @@ export async function updateRecipe(id: number, data: RecipeInput) {
     }
 
     if (data.tags !== undefined) {
-      await syncRecipeTags(tx, id, data.tags)
+      await syncRecipeTagsInTx(tx, id, data.tags)
     }
 
     // revalidatePath 移到事务外（事务内调用无意义）
@@ -329,41 +329,4 @@ export async function uploadImage(file: File): Promise<string> {
   await writeFile(filepath, buffer)
 
   return `/uploads/${filename}`
-}
-
-async function syncRecipeTags(tx: any, recipeId: number, tags: string[]) {
-  const normalizedTags = normalizeRecipeTags(tags)
-
-  await tx.delete(recipeTagRelations).where(eq(recipeTagRelations.recipeId, recipeId))
-
-  if (normalizedTags.length === 0) return
-
-  await tx.insert(recipeTags)
-    .values(normalizedTags.map(tag => ({
-      name: tag.name,
-      normalizedName: tag.normalizedName,
-    })))
-    .onConflictDoNothing({ target: recipeTags.normalizedName })
-
-  const tagRows = await tx
-    .select({
-      id: recipeTags.id,
-      normalizedName: recipeTags.normalizedName,
-    })
-    .from(recipeTags)
-    .where(inArray(recipeTags.normalizedName, normalizedTags.map(tag => tag.normalizedName)))
-
-  const tagIdByNormalizedName = new Map(tagRows.map((tag: { id: number; normalizedName: string }) => [tag.normalizedName, tag.id]))
-  const relations = normalizedTags
-    .map(tag => {
-      const tagId = tagIdByNormalizedName.get(tag.normalizedName)
-      return tagId ? { recipeId, tagId } : null
-    })
-    .filter((relation): relation is { recipeId: number; tagId: number } => relation !== null)
-
-  if (relations.length > 0) {
-    await tx.insert(recipeTagRelations)
-      .values(relations)
-      .onConflictDoNothing()
-  }
 }

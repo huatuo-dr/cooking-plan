@@ -13,6 +13,15 @@ import {
   deleteLocalCookingSession,
 } from './local'
 import { normalizeRecipeTags } from '@/lib/recipe-tags'
+import {
+  exportRecipePackage,
+  parseRecipePackageJson,
+  resolveImportRecipeTitles,
+  toRecipeInput,
+  type RecipeExportPackage,
+  type ImportImageWarning,
+  getImportImageWarnings,
+} from '@/lib/recipe-package'
 
 // 云端 Cooking 会话列表接口
 interface CloudCookingSession {
@@ -35,6 +44,12 @@ export interface UnifiedRecipe {
   source: 'local' | 'cloud'
   isOfficial?: boolean  // 是否是官方（管理员）菜谱
   isMine?: boolean      // 是否是当前用户创建的
+}
+
+export interface ImportRecipesResult {
+  importedCount: number
+  renamedCount: number
+  recipes: { title: string; originalTitle: string }[]
 }
 
 function normalizeRecipeIngredients(ingredients: any[] = []): { name: string; amount?: string }[] {
@@ -66,6 +81,17 @@ async function getCurrentUserId(): Promise<number | null> {
     if (response.ok) {
       const data = await response.json()
       return data.user?.id || null
+    }
+  } catch (e) {}
+  return null
+}
+
+async function getCurrentUser(): Promise<{ id: number; role: 'admin' | 'user' } | null> {
+  try {
+    const response = await fetch('/api/auth/me')
+    if (response.ok) {
+      const data = await response.json()
+      return data.user || null
     }
   } catch (e) {}
   return null
@@ -250,6 +276,76 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
       source: 'local',
     }
   }
+}
+
+export function createRecipeExportJson(recipes: UnifiedRecipe[]): string {
+  return JSON.stringify(exportRecipePackage(recipes), null, 2)
+}
+
+export function previewRecipeImport(json: string): {
+  recipePackage: RecipeExportPackage
+  imageWarnings: ImportImageWarning[]
+} {
+  const recipePackage = parseRecipePackageJson(json)
+  return {
+    recipePackage,
+    imageWarnings: getImportImageWarnings(recipePackage),
+  }
+}
+
+export async function importRecipesFromJson(json: string): Promise<ImportRecipesResult> {
+  const recipePackage = parseRecipePackageJson(json)
+  const user = await getCurrentUser()
+
+  if (!user) {
+    const localRecipes = await getLocalRecipes()
+    const titles = resolveImportRecipeTitles(
+      recipePackage.recipes.map(recipe => recipe.title),
+      localRecipes.map(recipe => recipe.title)
+    )
+    const imported: { title: string; originalTitle: string }[] = []
+
+    try {
+      for (const [index, packageRecipe] of recipePackage.recipes.entries()) {
+        const recipeInput = toRecipeInput(packageRecipe)
+        const saved = await saveLocalRecipe({
+          title: titles[index],
+          imageUrl: recipeInput.imageUrl,
+          ingredients: recipeInput.ingredients,
+          steps: recipeInput.steps,
+          tags: recipeInput.tags,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        })
+        imported.push({ title: saved.title, originalTitle: packageRecipe.title })
+      }
+    } catch (error) {
+      throw new Error(`导入失败，已导入 ${imported.length} 道菜谱`)
+    }
+
+    return {
+      importedCount: imported.length,
+      renamedCount: imported.filter(recipe => recipe.title !== recipe.originalTitle).length,
+      recipes: imported,
+    }
+  }
+
+  const endpoint = user.role === 'admin' ? '/api/admin/recipes/import' : '/api/recipes/import'
+  const response = await fetch(endpoint, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      recipePackage,
+      conflictStrategy: 'rename',
+    }),
+  })
+
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}))
+    throw new Error(err.error || '导入失败')
+  }
+
+  return await response.json()
 }
 
 // 删除菜谱
