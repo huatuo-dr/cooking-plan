@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cooking-Plan 菜谱图片删除功能方案设计</title>
+<style>
+  :root {
+    --bg: #fafaf7;
+    --card: #ffffff;
+    --ink: #1f2328;
+    --muted: #6b7280;
+    --line: #e7e5e0;
+    --brand: #d9480f;
+    --brand-soft: #fff4ed;
+    --green: #2f9e44;
+    --blue: #1971c2;
+    --amber: #e8a317;
+    --red: #e03131;
+    --code-bg: #f5f3ee;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    line-height: 1.7;
+    font-size: 16px;
+  }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 20px 80px; }
+  header.hero {
+    background: linear-gradient(135deg, #862e9c 0%, #d9480f 58%, #f08c00 100%);
+    color: #fff;
+    padding: 56px 20px 48px;
+    text-align: center;
+  }
+  header.hero h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: 1px; }
+  header.hero .sub { font-size: 16px; opacity: .95; }
+  header.hero .meta { margin-top: 18px; font-size: 13px; opacity: .9; }
+  .badge {
+    display: inline-block;
+    background: rgba(255,255,255,.18);
+    border: 1px solid rgba(255,255,255,.35);
+    padding: 3px 12px;
+    border-radius: 999px;
+    font-size: 13px;
+    margin: 4px;
+  }
+  section { margin-top: 40px; }
+  h2 {
+    font-size: 22px;
+    margin: 0 0 16px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--line);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  h2 .num {
+    background: var(--brand);
+    color: #fff;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex: none;
+  }
+  h3 { font-size: 17px; margin: 22px 0 10px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-top: 16px;
+    box-shadow: 0 1px 2px rgba(0,0,0,.03);
+  }
+  .lead {
+    background: var(--brand-soft);
+    border-left: 4px solid var(--brand);
+    padding: 16px 20px;
+    border-radius: 0 12px 12px 0;
+    margin-top: 16px;
+  }
+  .lead strong { color: var(--brand); }
+  .note { color: var(--muted); font-size: 14px; margin-top: 10px; }
+  .toc { font-size: 14px; }
+  .toc a { color: var(--blue); text-decoration: none; margin-right: 14px; }
+  .toc a:hover { text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 15px; }
+  th, td {
+    text-align: left;
+    padding: 11px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  th { background: var(--code-bg); font-weight: 600; }
+  td.k { font-weight: 600; white-space: nowrap; }
+  ul.clean { list-style: none; padding-left: 0; margin: 8px 0; }
+  ul.clean li { padding: 6px 0 6px 26px; position: relative; }
+  ul.clean li::before {
+    content: "";
+    position: absolute;
+    left: 4px;
+    top: 15px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--brand);
+  }
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 16px 18px;
+    overflow-x: auto;
+    font-size: 13.5px;
+    line-height: 1.6;
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  code { font-family: "SFMono-Regular", Consolas, Menlo, monospace; }
+  .pill {
+    display: inline-block;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 13px;
+    font-weight: 600;
+    margin: 2px 4px 2px 0;
+  }
+  .pill.green { background: #ebfbee; color: var(--green); }
+  .pill.blue { background: #e7f5ff; color: var(--blue); }
+  .pill.amber { background: #fff9db; color: #b08300; }
+  .pill.red { background: #fff5f5; color: var(--red); }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  @media (max-width: 720px) { .grid2 { grid-template-columns: 1fr; } }
+  .decision {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 16px 18px;
+    background: #fff;
+  }
+  .decision .q { font-size: 13px; color: var(--muted); margin-bottom: 4px; }
+  .decision .a { font-size: 16px; font-weight: 600; }
+  .steps { counter-reset: step; list-style: none; padding-left: 0; }
+  .steps li {
+    counter-increment: step;
+    position: relative;
+    padding: 12px 0 12px 48px;
+    border-bottom: 1px dashed var(--line);
+  }
+  .steps li:last-child { border-bottom: none; }
+  .steps li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 12px;
+    width: 30px;
+    height: 30px;
+    background: #fff4ed;
+    color: var(--brand);
+    border: 1px solid #ffc9a6;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 14px;
+  }
+</style>
+</head>
+<body>
+<header class="hero">
+  <h1>菜谱图片删除功能方案设计</h1>
+  <div class="sub">为已上传图片补充可清空、可保存、可审计的删除路径</div>
+  <div class="meta">
+    <span class="badge">Feature: Remove Recipe Image</span>
+    <span class="badge">Version: Draft 1</span>
+    <span class="badge">Date: 2026-07-23</span>
+  </div>
+</header>
+
+<main class="wrap">
+  <section>
+    <div class="card toc">
+      <strong>目录：</strong>
+      <a href="#background">背景与问题</a>
+      <a href="#goal">目标范围</a>
+      <a href="#approaches">方案比较</a>
+      <a href="#recommended">推荐方案</a>
+      <a href="#implementation">实施拆解</a>
+      <a href="#tests">测试计划</a>
+      <a href="#risks">风险与决策点</a>
+    </div>
+  </section>
+
+  <section id="background">
+    <h2><span class="num">1</span>背景与问题</h2>
+    <div class="lead">
+      当前编辑菜谱页面允许上传或替换图片，但没有提供“删除图片”的入口。用户一旦给菜谱绑定图片，只能换成另一张图片，不能恢复到无图状态。
+    </div>
+    <div class="card">
+      <h3>现状证据</h3>
+      <ul class="clean">
+        <li><code>src/app/recipes/[id]/edit/page.tsx</code> 中图片区域只有预览和文件上传控件，没有清空按钮。</li>
+        <li>编辑页保存时传递 <code>imageUrl: imageUrl || undefined</code>，无法明确表达“删除图片”。</li>
+        <li><code>src/lib/validators.ts</code> 当前会把 <code>imageUrl: null</code> 转换成 <code>undefined</code>；这对兼容读取有用，但不适合作为更新接口的删除语义。</li>
+        <li>上传接口只支持 <code>POST /api/upload</code>，没有用于删除 <code>public/uploads</code> 文件的接口。</li>
+        <li><code>src/lib/actions/recipes.ts</code> 当前权限查询只读取 <code>userId</code> 和 <code>authorRole</code>；物理文件清理需要后端同时读取更新前的 <code>recipes.imageUrl</code> 作为可信旧值。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="goal">
+    <h2><span class="num">2</span>目标范围</h2>
+    <div class="grid2">
+      <div class="decision">
+        <div class="q">核心目标</div>
+        <div class="a">用户可在编辑菜谱时移除当前图片，并保存为无图菜谱。</div>
+      </div>
+      <div class="decision">
+        <div class="q">数据目标</div>
+        <div class="a">云端菜谱的 <code>image_url</code> 被置为 <code>NULL</code>；本地菜谱的 IndexedDB <code>imageUrl</code> 被清空。</div>
+      </div>
+      <div class="decision">
+        <div class="q">权限目标</div>
+        <div class="a">只有有权编辑该菜谱的用户才能删除图片。</div>
+      </div>
+      <div class="decision">
+        <div class="q">文件目标</div>
+        <div class="a">优先保证业务数据正确；物理文件删除采用保守策略。</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>不纳入本次范围</h3>
+      <ul class="clean">
+        <li>不做图片库、历史图片恢复、图片批量清理后台。</li>
+        <li>不改变菜谱图片上传格式、大小限制、压缩策略。</li>
+        <li>不删除外部 URL 图片资源，因为应用不拥有外部资源。</li>
+        <li>不保证清理新建页上传后又取消保存产生的孤儿文件；这是本次的明确取舍，可后续用定期清理任务解决。</li>
+      </ul>
+    </div>
+  </section>
+
+  <section id="approaches">
+    <h2><span class="num">3</span>方案比较</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>方案</th>
+            <th>内容</th>
+            <th>优点</th>
+            <th>风险</th>
+            <th>结论</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="k">A. 仅前端清空引用</td>
+            <td>编辑页加“删除图片”按钮，保存时把 <code>imageUrl</code> 清空。</td>
+            <td>实现简单，用户立即可用。</td>
+            <td>需要调整后端更新语义；上传文件会残留。</td>
+            <td><span class="pill amber">不完整</span></td>
+          </tr>
+          <tr>
+            <td class="k">B. 清空引用 + 保守文件清理</td>
+            <td>保存时把 <code>image_url</code> 置空；如果原图是本应用 <code>/uploads/</code> 文件，并且没有其他菜谱引用，再尝试删除物理文件。</td>
+            <td>用户体验完整，减少无用文件，不会误删共享图片。</td>
+            <td>实现略多，需要文件路径安全校验和引用计数查询。</td>
+            <td><span class="pill green">推荐</span></td>
+          </tr>
+          <tr>
+            <td class="k">C. 独立图片删除 API</td>
+            <td>新增 <code>DELETE /api/upload</code> 或 <code>DELETE /api/recipes/:id/image</code>，点击按钮立即删除。</td>
+            <td>语义清晰，可独立重试。</td>
+            <td>编辑表单未保存时容易出现“图片已删但表单取消”的不一致；需要更多状态管理。</td>
+            <td><span class="pill red">暂不推荐</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="recommended">
+    <h2><span class="num">4</span>推荐方案</h2>
+    <div class="card">
+      <h3>采用方案 B：清空引用 + 保守文件清理</h3>
+      <p>
+        用户在编辑页点击“删除图片”后，页面立即隐藏预览，并显示可撤销的无图状态；只有点击“保存修改”后，菜谱记录才真正变为无图。
+        后端更新接口需要明确支持 <code>imageUrl: null</code>，并把数据库字段更新为 <code>NULL</code>。
+      </p>
+      <p>
+        对物理文件删除采取“最佳努力”策略：后端必须先从数据库读取更新前的 <code>oldImageUrl</code>，如果旧图片地址是 <code>/uploads/&lt;filename&gt;</code>，且没有其他菜谱继续引用同一路径，后端在成功更新数据库后尝试删除对应文件。
+        文件删除失败不回滚菜谱保存，只记录服务端日志，避免因为磁盘清理失败影响用户完成编辑。
+      </p>
+      <p>
+        文件清理只针对 <code>oldImageUrl</code>，不能使用客户端传入值或更新后的值作为删除目标。只有当 <code>oldImageUrl</code> 与保存后的新值不同，且 <code>oldImageUrl</code> 通过严格路径校验时，才进入物理文件清理流程。
+      </p>
+      <div class="note">
+        这样可以同时满足用户视角的“删除图片”和系统视角的数据安全，避免误删被官方菜谱、复制菜谱或导入菜谱复用的同一图片文件。
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>更新接口语义</h3>
+      <pre><code>PUT /api/recipes/:id
+
+{
+  "title": "番茄炒蛋",
+  "imageUrl": null,
+  "ingredients": [{ "name": "番茄", "amount": "2个" }],
+  "steps": [{ "phase": "cook", "text": "炒熟" }],
+  "tags": ["快手菜"]
+}</code></pre>
+      <table>
+        <thead>
+          <tr>
+            <th>输入</th>
+            <th>含义</th>
+            <th>数据库结果</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>imageUrl: "..."</code></td>
+            <td>设置或替换图片</td>
+            <td><code>image_url = "..."</code></td>
+          </tr>
+          <tr>
+            <td><code>imageUrl: null</code></td>
+            <td>删除图片引用</td>
+            <td><code>image_url = NULL</code></td>
+          </tr>
+          <tr>
+            <td><code>imageUrl</code> 缺失</td>
+            <td>本次更新不改变图片字段</td>
+            <td>保持原值</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        客户端类型和保存封装需要同步表达该语义：<code>UnifiedRecipe.imageUrl</code> 可继续用于读取为 <code>string | undefined</code>，但 <code>saveRecipe</code> 的入参需要允许 <code>imageUrl?: string | null</code>。编辑页需要增加 <code>imageRemoved</code> 或等价状态；用户点击删除后，保存 payload 必须发送 <code>imageUrl: null</code>，不能继续使用 <code>imageUrl || undefined</code>。
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>服务端旧值读取与清理顺序</h3>
+      <ol class="steps">
+        <li>在 <code>updateRecipe</code> 的授权查询中同时选出 <code>recipes.imageUrl</code>，保存为 <code>oldImageUrl</code>。</li>
+        <li>在同一个事务内完成权限校验、菜谱字段更新、食材/步骤/标签更新。</li>
+        <li>事务成功后，根据请求语义计算保存后的 <code>newImageUrl</code>：字符串表示新图，<code>null</code> 表示无图，字段缺失表示沿用 <code>oldImageUrl</code>。</li>
+        <li>只有 <code>oldImageUrl</code> 存在且 <code>oldImageUrl !== newImageUrl</code> 时，才尝试对 <code>oldImageUrl</code> 做引用计数和物理文件清理。</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="implementation">
+    <h2><span class="num">5</span>实施拆解</h2>
+    <div class="card">
+      <ol class="steps">
+        <li>
+          <strong>调整后端校验模型。</strong>
+          将创建和更新的图片字段语义拆开：创建时可以继续接受缺省或字符串；更新时保留 <code>null</code>，不要把 <code>null</code> 统一转成 <code>undefined</code>。
+        </li>
+        <li>
+          <strong>扩展客户端保存入参。</strong>
+          将 <code>saveRecipe</code> 可接受的图片字段扩展为 <code>imageUrl?: string | null</code>。读取模型仍可把无图表示为 <code>undefined</code>，但写入模型必须保留 <code>null</code> 作为删除命令。
+        </li>
+        <li>
+          <strong>调整 <code>updateRecipe</code> 入参和更新逻辑。</strong>
+          授权查询时选出 <code>recipes.imageUrl</code> 作为 <code>oldImageUrl</code>。当请求体包含 <code>imageUrl</code> 字段时，按字符串或 <code>null</code> 更新数据库；当请求体未包含该字段时，不修改图片字段。
+        </li>
+        <li>
+          <strong>增加上传文件清理工具函数。</strong>
+          函数只接受严格格式 <code>/uploads/&lt;filename&gt;</code>，其中 <code>&lt;filename&gt;</code> 必须是单段文件名，解码后不能包含 <code>/</code>、<code>\</code>、<code>..</code>，并且必须匹配当前上传格式 <code>nanoid(16).jpg|png|webp</code>。任何不符合条件的路径都直接拒绝，不做 <code>path.basename</code> 静默改写。
+        </li>
+        <li>
+          <strong>增加引用计数保护。</strong>
+          事务成功后只对 <code>oldImageUrl</code> 做清理。删除物理文件前查询是否还有其他菜谱引用相同 <code>image_url</code>。只有 <code>oldImageUrl !== newImageUrl</code> 且引用数为 0 时才尝试删除文件。
+        </li>
+        <li>
+          <strong>编辑页增加“删除图片”按钮。</strong>
+          仅在当前有图片时展示。点击后清空本地 <code>imageUrl</code> 状态，设置 <code>imageRemoved</code> 或等价状态，并展示“保存后删除图片”的提示；用户点取消返回时不提交变更。
+        </li>
+        <li>
+          <strong>保存 payload 明确发送 <code>null</code>。</strong>
+          编辑页需要区分“没有改图片”和“删除图片”。当用户点击删除后，保存请求发送 <code>imageUrl: null</code>。
+        </li>
+        <li>
+          <strong>补充本地菜谱行为。</strong>
+          对 <code>local-*</code> 菜谱，删除图片只清空 IndexedDB 记录中的 <code>imageUrl</code>，不做物理文件删除；本地模式下原本也不支持通过上传接口写入新图片。
+        </li>
+        <li>
+          <strong>保持新建页简单。</strong>
+          新建菜谱页可以同步增加“移除已选图片”按钮，用于撤销本次上传或选择；它不触发物理删除，保存时无图即可。若图片已上传但用户没有保存菜谱，会留下孤儿文件，这是本阶段接受的产品取舍。
+        </li>
+      </ol>
+    </div>
+
+    <div class="card">
+      <h3>涉及文件</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>文件</th>
+            <th>修改点</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>src/app/recipes/[id]/edit/page.tsx</code></td>
+            <td>增加删除按钮、删除状态、保存时发送 <code>null</code>；本地菜谱保存时清空 IndexedDB 图片字段。</td>
+          </tr>
+          <tr>
+            <td><code>src/app/recipes/new/page.tsx</code></td>
+            <td>可选：增加移除预览图片按钮，方便撤销新建时的图片选择。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/validators.ts</code></td>
+            <td>调整更新 schema，保留 <code>imageUrl: null</code> 语义。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/actions/recipes.ts</code></td>
+            <td>授权查询读取 <code>oldImageUrl</code>；更新数据库清空逻辑；事务成功后对旧图执行保守物理清理。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/storage/client.ts</code></td>
+            <td>扩展 <code>saveRecipe</code> 入参，允许 <code>imageUrl: null</code> 传递到云端更新接口，并允许本地保存时清空图片字段。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/actions/recipe-images.ts</code></td>
+            <td>建议新增：集中处理严格图片路径校验、引用查询和文件删除。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/validators.test.ts</code></td>
+            <td>更新 <code>imageUrl: null</code> 的测试预期。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/actions/recipe-images.test.ts</code></td>
+            <td>建议新增：测试严格路径拒绝、引用保护和删除策略。</td>
+          </tr>
+          <tr>
+            <td><code>src/lib/actions/recipes.test.ts</code> 或 API route 测试</td>
+            <td>建议新增：覆盖 <code>imageUrl: null</code> 清空、字段缺失保留、替换后清理旧图、无权限拒绝。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="tests">
+    <h2><span class="num">6</span>测试计划</h2>
+    <div class="card">
+      <h3>单元测试</h3>
+      <ul class="clean">
+        <li><code>recipeUpdateSchema</code> 解析 <code>imageUrl: null</code> 后仍保留 <code>null</code>。</li>
+        <li><code>recipeUpdateSchema</code> 在缺失 <code>imageUrl</code> 时返回 <code>undefined</code>，用于“不改图片”。</li>
+        <li>图片清理工具只接受 <code>/uploads/&lt;nanoid16&gt;.jpg|png|webp</code> 这类应用内路径，拒绝外部 URL、绝对路径、多段路径、反斜杠路径、<code>../</code> 路径、解码后包含路径分隔符的值，以及不符合当前上传文件名格式的值。</li>
+        <li>当其他菜谱仍引用同一图片时，不删除物理文件。</li>
+        <li>当引用数为 0 且文件存在时，删除文件；文件不存在时不抛出用户可见错误。</li>
+      </ul>
+
+      <h3>API / Action 回归测试</h3>
+      <ul class="clean">
+        <li><code>PUT /api/recipes/:id</code> 或 <code>updateRecipe</code> 接收 <code>imageUrl: null</code> 时，将当前用户有权编辑菜谱的 <code>image_url</code> 清空。</li>
+        <li>请求体缺失 <code>imageUrl</code> 时，保留旧图片 URL，不误清空。</li>
+        <li>替换图片时，数据库写入新 URL；事务成功后只对 <code>oldImageUrl</code> 做清理，不能清理新 URL。</li>
+        <li>无权限用户提交 <code>imageUrl: null</code> 时返回权限错误，数据库图片字段保持不变，也不触发文件删除。</li>
+        <li>本地 <code>local-*</code> 菜谱删除图片后，IndexedDB 记录不再包含 <code>imageUrl</code>，且不会调用云端物理文件清理。</li>
+      </ul>
+
+      <h3>手动验收</h3>
+      <ol class="steps">
+        <li>登录后创建一条带图片菜谱，进入详情页确认图片展示。</li>
+        <li>进入编辑页，点击“删除图片”，确认预览消失且保存按钮可用。</li>
+        <li>点击“保存修改”，回到详情页确认不再展示图片。</li>
+        <li>刷新页面后再次进入详情页，确认图片仍然为空。</li>
+        <li>用无权限用户访问其他人的菜谱编辑接口，确认不能删除图片。</li>
+        <li>同一图片被两个菜谱引用时，删除其中一个菜谱的图片，确认另一个菜谱仍能正常显示。</li>
+        <li>在访客模式创建本地菜谱并编辑删除图片，确认保存后本地详情页恢复为无图状态。</li>
+        <li>在新建页上传图片后点击“移除已选图片”再保存，确认菜谱为无图；该步骤不验收物理文件删除。</li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="risks">
+    <h2><span class="num">7</span>风险与决策点</h2>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>风险</th>
+            <th>处理方式</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>误删共享图片文件</td>
+            <td>事务成功后只对 <code>oldImageUrl</code> 清理；删除前查询其他菜谱引用；仍被引用则只清空当前菜谱字段，不删文件。</td>
+          </tr>
+          <tr>
+            <td>路径穿越或删除非上传目录文件</td>
+            <td>只接受严格格式 <code>/uploads/&lt;nanoid16&gt;.jpg|png|webp</code>；解码后包含 <code>/</code>、<code>\</code>、<code>..</code> 或不符合上传文件名格式时直接拒绝，不做 <code>path.basename</code> 改写。</td>
+          </tr>
+          <tr>
+            <td>用户点击删除后又取消编辑</td>
+            <td>删除动作先作用于表单状态；只有保存后才提交后端变更。</td>
+          </tr>
+          <tr>
+            <td>物理文件删除失败</td>
+            <td>不回滚菜谱保存；记录服务端日志，后续可由清理任务处理。</td>
+          </tr>
+          <tr>
+            <td>外部图片无法删除</td>
+            <td>只清空引用；不尝试删除应用不拥有的外部资源。</td>
+          </tr>
+          <tr>
+            <td>本地菜谱没有云端文件所有权</td>
+            <td>本地菜谱只清空 IndexedDB 中的 <code>imageUrl</code>，不执行物理文件删除。</td>
+          </tr>
+          <tr>
+            <td>新建页上传后取消或移除图片产生孤儿文件</td>
+            <td>本阶段接受该取舍；新建页移除按钮只影响表单状态。后续若需要彻底治理，再设计定期清理未引用上传文件的任务。</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="lead">
+      <strong>待审查决策：</strong>
+      是否同意本次实现包含“物理文件保守清理”？如果希望先快速交付，可以第一阶段只清空菜谱图片引用，第二阶段再补充无引用文件清理。
+    </div>
+  </section>
+</main>
+</body>
+</html>

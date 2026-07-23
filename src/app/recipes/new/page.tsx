@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getAllRecipes, saveRecipe } from '@/lib/storage/client'
 import { RecipeTagsInput } from '@/components/RecipeTagsInput'
 import { getAvailableTags } from '@/lib/recipe-tags'
+import { Trash2 } from 'lucide-react'
 
 export default function NewRecipePage() {
   const router = useRouter()
@@ -17,6 +18,7 @@ export default function NewRecipePage() {
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadAvailableTags()
@@ -54,7 +56,17 @@ export default function NewRecipePage() {
     } catch (error) {
       alert('图片上传失败')
     } finally {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
       setUploading(false)
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setImageUrl('')
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
     }
   }
 
@@ -137,6 +149,7 @@ export default function NewRecipePage() {
               )}
               <div>
                 <input
+                  ref={imageInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
@@ -144,6 +157,16 @@ export default function NewRecipePage() {
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 {uploading && <p className="mt-1 text-sm text-gray-500">上传中...</p>}
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="mt-3 px-3 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium flex items-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    移除图片
+                  </button>
+                )}
               </div>
             </div>
           </div>

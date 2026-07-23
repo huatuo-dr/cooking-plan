@@ -46,6 +46,11 @@ export interface UnifiedRecipe {
   isMine?: boolean      // 是否是当前用户创建的
 }
 
+type SaveRecipeInput = Omit<Partial<UnifiedRecipe>, 'imageUrl'> & {
+  title: string
+  imageUrl?: string | null
+}
+
 export interface ImportRecipesResult {
   importedCount: number
   renamedCount: number
@@ -195,17 +200,25 @@ export async function getRecipeById(id: string): Promise<UnifiedRecipe | null> {
 }
 
 // 创建/更新菜谱
-export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: string }): Promise<UnifiedRecipe> {
+export async function saveRecipe(recipe: SaveRecipeInput): Promise<UnifiedRecipe> {
   const loggedIn = await isLoggedIn()
 
   if (loggedIn) {
     const tags = recipe.tags === undefined ? undefined : normalizeRecipeTags(recipe.tags).map(tag => tag.name)
     // 登录用户：保存到云端
-    const basePayload = {
+    const basePayload: {
+      title: string
+      imageUrl?: string | null
+      ingredients: { name: string; amount?: string }[]
+      steps: { phase: 'prep' | 'cook'; text: string }[]
+    } = {
       title: recipe.title,
-      imageUrl: recipe.imageUrl,
       ingredients: recipe.ingredients || [],
       steps: recipe.steps || [],
+    }
+
+    if (recipe.imageUrl !== undefined) {
+      basePayload.imageUrl = recipe.imageUrl
     }
 
     if (recipe.id?.startsWith('cloud-')) {
@@ -245,6 +258,7 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
         ingredients: recipe.ingredients || [],
         steps: recipe.steps || [],
         tags: tags || [],
+        imageUrl: recipe.imageUrl || undefined,
       }
     }
   } else {
@@ -257,7 +271,7 @@ export async function saveRecipe(recipe: Partial<UnifiedRecipe> & { title: strin
     const localRecipe: LocalRecipe = {
       id: localId,
       title: recipe.title,
-      imageUrl: recipe.imageUrl,
+      imageUrl: recipe.imageUrl ?? undefined,
       ingredients: recipe.ingredients || [],
       steps: recipe.steps || [],
       tags,

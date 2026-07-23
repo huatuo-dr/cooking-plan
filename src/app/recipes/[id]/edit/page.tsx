@@ -1,11 +1,12 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect, use, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { getAllRecipes, getRecipeById, saveRecipe, UnifiedRecipe } from '@/lib/storage/client'
 import { RecipeTagsInput } from '@/components/RecipeTagsInput'
 import { getAvailableTags } from '@/lib/recipe-tags'
+import { Trash2 } from 'lucide-react'
 
 export default function EditRecipePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -21,6 +22,8 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
   const [tags, setTags] = useState<string[]>([])
   const [availableTags, setAvailableTags] = useState<string[]>([])
   const [uploading, setUploading] = useState(false)
+  const [imageRemoved, setImageRemoved] = useState(false)
+  const imageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     loadRecipe()
@@ -34,6 +37,7 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
         setRecipe(data)
         setTitle(data.title)
         setImageUrl(data.imageUrl || '')
+        setImageRemoved(false)
         setIngredients(data.ingredients.length > 0 ? data.ingredients : [{ name: '', amount: '' }])
         setSteps(data.steps.length > 0 ? data.steps : [{ phase: 'prep', text: '' }])
         setTags(data.tags || [])
@@ -64,13 +68,25 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
       if (response.ok) {
         const { url } = await response.json()
         setImageUrl(url)
+        setImageRemoved(false)
       } else {
         alert('图片上传失败')
       }
     } catch (error) {
       alert('图片上传失败')
     } finally {
+      if (imageInputRef.current) {
+        imageInputRef.current.value = ''
+      }
       setUploading(false)
+    }
+  }
+
+  const handleRemoveImage = () => {
+    setImageUrl('')
+    setImageRemoved(true)
+    if (imageInputRef.current) {
+      imageInputRef.current.value = ''
     }
   }
 
@@ -100,7 +116,7 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
       await saveRecipe({
         id: id,
         title,
-        imageUrl: imageUrl || undefined,
+        imageUrl: imageRemoved ? null : imageUrl || undefined,
         ingredients: validIngredients,
         steps: validSteps,
         tags,
@@ -173,6 +189,7 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
               )}
               <div>
                 <input
+                  ref={imageInputRef}
                   type="file"
                   accept="image/*"
                   onChange={handleImageUpload}
@@ -180,6 +197,19 @@ export default function EditRecipePage({ params }: { params: Promise<{ id: strin
                   className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
                 />
                 {uploading && <p className="mt-1 text-sm text-gray-500">上传中...</p>}
+                {imageUrl && (
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="mt-3 px-3 py-2 border border-red-600 text-red-600 rounded-lg hover:bg-red-50 text-sm font-medium flex items-center gap-2"
+                  >
+                    <Trash2 size={16} />
+                    删除图片
+                  </button>
+                )}
+                {imageRemoved && (
+                  <p className="mt-2 text-sm text-orange-600">保存后将删除当前图片关联</p>
+                )}
               </div>
             </div>
           </div>

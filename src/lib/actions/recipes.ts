@@ -8,10 +8,12 @@ import { writeFile } from 'fs/promises'
 import path from 'path'
 import { getSession } from '@/lib/auth'
 import { syncRecipeTagsInTx } from '@/lib/actions/recipe-tags'
+import { cleanupUnusedRecipeImage } from '@/lib/actions/recipe-images'
+import { getNextRecipeImageUrl, shouldCleanupOldRecipeImage } from '@/lib/actions/recipe-update'
 
 type RecipeInput = {
   title: string
-  imageUrl?: string
+  imageUrl?: string | null
   ingredients: { name: string; amount?: string }[]
   steps: { phase: 'prep' | 'cook'; text: string }[]
   tags?: string[]
@@ -213,10 +215,17 @@ export async function updateRecipe(id: number, data: RecipeInput) {
     throw new Error('请先登录')
   }
 
+  let oldImageUrl: string | null = null
+  let nextImageUrl: string | null = null
+
   // C + A 使用事务：在事务中查询并校验权限，确保原子性
   await db.transaction(async (tx) => {
     const recipeInfo = await tx
-      .select({ userId: recipes.userId, authorRole: users.role })
+      .select({
+        userId: recipes.userId,
+        authorRole: users.role,
+        imageUrl: recipes.imageUrl,
+      })
       .from(recipes)
       .leftJoin(users, eq(recipes.userId, users.id))
       .where(eq(recipes.id, id))
@@ -236,9 +245,22 @@ export async function updateRecipe(id: number, data: RecipeInput) {
       throw new Error('没有编辑权限')
     }
 
+    oldImageUrl = recipeInfo[0].imageUrl
+    nextImageUrl = getNextRecipeImageUrl(data, oldImageUrl)
+
     // 更新菜谱基本信息
+    const recipeUpdate: {
+      title: string
+      updatedAt: Date
+      imageUrl?: string | null
+    } = { title: data.title, updatedAt: new Date() }
+
+    if (data.imageUrl !== undefined) {
+      recipeUpdate.imageUrl = data.imageUrl ?? null
+    }
+
     await tx.update(recipes)
-      .set({ title: data.title, imageUrl: data.imageUrl, updatedAt: new Date() })
+      .set(recipeUpdate)
       .where(eq(recipes.id, id))
 
     // 删除旧的食材和步骤
@@ -279,6 +301,23 @@ export async function updateRecipe(id: number, data: RecipeInput) {
   revalidatePath('/')
   revalidatePath(`/recipes/${id}`)
   revalidatePath(`/recipes/${id}/edit`)
+
+  if (shouldCleanupOldRecipeImage(oldImageUrl, nextImageUrl)) {
+    try {
+      await cleanupUnusedRecipeImage(oldImageUrl, {
+        hasReferences: async (imageUrl) => {
+          const rows = await db
+            .select({ id: recipes.id })
+            .from(recipes)
+            .where(eq(recipes.imageUrl, imageUrl))
+            .limit(1)
+          return rows.length > 0
+        },
+      })
+    } catch (error) {
+      console.error('Recipe image cleanup failed after recipe update:', error)
+    }
+  }
 }
 
 export async function deleteRecipe(id: number) {

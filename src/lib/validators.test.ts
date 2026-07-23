@@ -30,7 +30,7 @@ describe('recipeSchema tags', () => {
     expect(result.tags).toBeUndefined()
   })
 
-  it('accepts nullable image and ingredient amounts from existing recipe payloads', () => {
+  it('preserves null image in update payloads as a remove-image command', () => {
     const result = recipeUpdateSchema.parse({
       title: '紫菜炒饭',
       imageUrl: null,
@@ -39,8 +39,14 @@ describe('recipeSchema tags', () => {
       tags: ['主食'],
     })
 
-    expect(result.imageUrl).toBeUndefined()
+    expect(result.imageUrl).toBeNull()
     expect(result.ingredients).toEqual([{ name: '米饭', amount: undefined }])
     expect(result.tags).toEqual(['主食'])
+  })
+
+  it('does not change image when update payload omits imageUrl', () => {
+    const result = recipeUpdateSchema.parse(validRecipe)
+
+    expect(result.imageUrl).toBeUndefined()
   })
 })

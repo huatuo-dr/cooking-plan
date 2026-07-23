@@ -18,6 +18,9 @@ const optionalTagsSchema = z.array(z.string()).optional().transform((tags, ctx) 
   tags === undefined ? undefined : normalizeTagsForSchema(tags, ctx)
 ))
 const optionalNullableString = (max: number) => z.string().max(max).nullish().transform(value => value ?? undefined)
+const optionalUpdateImageUrl = z.string().max(500).nullish().transform(value => (
+  value === null ? null : value ?? undefined
+))
 
 // 菜谱创建/更新校验
 export const recipeSchema = z.object({
@@ -37,6 +40,7 @@ export const recipeSchema = z.object({
 export type RecipeInput = z.infer<typeof recipeSchema>
 
 export const recipeUpdateSchema = recipeSchema.extend({
+  imageUrl: optionalUpdateImageUrl,
   tags: optionalTagsSchema,
 })
 
