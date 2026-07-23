@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { getAllRecipes, UnifiedRecipe, createRecipeExportJson, type ImportRecipesResult } from '@/lib/storage/client'
 import { useAuth } from '@/lib/hooks/useAuth'
 import { RecipeFilters } from '@/components/RecipeFilters'
 import { RecipeImportDialog } from '@/components/RecipeImportDialog'
 import { filterRecipesByQueryAndTags } from '@/lib/recipe-tags'
-import { CheckSquare, Download, Square, Upload, X } from 'lucide-react'
+import { getMobileHeaderMenuItems, type MobileHeaderMenuItemId } from '@/lib/mobile-header-menu'
+import { CheckSquare, Download, Menu, Plus, Square, Upload, X } from 'lucide-react'
 
 export default function HomePage() {
   const { user, isLoggedIn, isAdmin } = useAuth()
@@ -17,14 +18,46 @@ export default function HomePage() {
   const [bulkExportMode, setBulkExportMode] = useState(false)
   const [selectedRecipeIds, setSelectedRecipeIds] = useState<string[]>([])
   const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const mobileMenuButtonRef = useRef<HTMLButtonElement>(null)
+  const mobileMenuRef = useRef<HTMLDivElement>(null)
   const filteredRecipes = filterRecipesByQueryAndTags(recipes, { query, selectedTags })
   const selectedRecipeIdSet = new Set(selectedRecipeIds)
+  const mobileMenuItems = getMobileHeaderMenuItems({ isLoggedIn, isAdmin })
 
   // #12 登录态变化时重新加载菜谱
   useEffect(() => {
     loadData()
   }, [isLoggedIn])
+
+  useEffect(() => {
+    if (!mobileMenuOpen) return
+
+    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target
+      if (!(target instanceof Node)) return
+      if (mobileMenuRef.current?.contains(target)) return
+      if (mobileMenuButtonRef.current?.contains(target)) return
+      setMobileMenuOpen(false)
+    }
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setMobileMenuOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handlePointerDown)
+    document.addEventListener('touchstart', handlePointerDown)
+    document.addEventListener('keydown', handleKeyDown)
+
+    return () => {
+      document.removeEventListener('mousedown', handlePointerDown)
+      document.removeEventListener('touchstart', handlePointerDown)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [mobileMenuOpen])
 
   const loadData = async () => {
     setLoading(true)
@@ -82,11 +115,25 @@ export default function HomePage() {
     loadData()
   }
 
+  const closeMobileMenu = () => {
+    setMobileMenuOpen(false)
+  }
+
+  const handleMobileMenuAction = (id: MobileHeaderMenuItemId) => {
+    closeMobileMenu()
+    if (id === 'import-json') {
+      setImportDialogOpen(true)
+    }
+    if (id === 'bulk-export') {
+      setBulkExportMode(true)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* 头部 */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 py-4 hidden md:flex items-center justify-between">
           <h1 className="text-2xl font-bold text-gray-900">🍳 Cooking Plan</h1>
           <div className="flex items-center gap-3">
             {isLoggedIn ? (
@@ -148,6 +195,62 @@ export default function HomePage() {
               批量导出
             </button>
           </div>
+        </div>
+
+        <div className="relative max-w-6xl mx-auto px-4 h-14 flex md:hidden items-center justify-between gap-3">
+          <h1 className="min-w-0 flex-1 truncate text-xl font-bold text-gray-900">
+            Cooking Plan
+          </h1>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link
+              href="/recipes/new"
+              className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-600 text-white hover:bg-blue-700"
+              aria-label="新建菜谱"
+            >
+              <Plus size={22} />
+            </Link>
+            <button
+              ref={mobileMenuButtonRef}
+              type="button"
+              onClick={() => setMobileMenuOpen(current => !current)}
+              className="flex h-10 w-10 items-center justify-center rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50"
+              aria-label={mobileMenuOpen ? '关闭菜单' : '打开菜单'}
+              aria-controls="mobile-header-menu"
+              aria-expanded={mobileMenuOpen}
+            >
+              <Menu size={22} />
+            </button>
+          </div>
+
+          {mobileMenuOpen && (
+            <div
+              ref={mobileMenuRef}
+              id="mobile-header-menu"
+              className="absolute right-4 top-full z-30 mt-2 w-56 rounded-lg border border-gray-200 bg-white py-2 shadow-lg"
+            >
+              {mobileMenuItems.map((item) => (
+                item.kind === 'link' ? (
+                  <Link
+                    key={item.id}
+                    href={item.href ?? '/'}
+                    onClick={closeMobileMenu}
+                    className="block px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    {item.label}
+                  </Link>
+                ) : (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => handleMobileMenuAction(item.id)}
+                    className="block w-full px-4 py-2.5 text-left text-sm font-medium text-gray-700 hover:bg-gray-50"
+                  >
+                    {item.label}
+                  </button>
+                )
+              ))}
+            </div>
+          )}
         </div>
       </header>
 
